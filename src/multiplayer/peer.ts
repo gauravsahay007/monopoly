@@ -1,143 +1,113 @@
-import Peer, { type DataConnection } from 'peerjs';
+import { db } from '../firebase';
+import { doc, onSnapshot, setDoc, addDoc, collection, deleteDoc } from 'firebase/firestore';
 import { useGameStore } from '../store/gameStore';
 
-let peer: Peer | null = null;
-let connections: DataConnection[] = []; // Host keeps track of clients
-let hostConnection: DataConnection | null = null; // Client connection to host
+// Subscription Cleanups
+let unsubscribeState: (() => void) | null = null;
+let unsubscribeActions: (() => void) | null = null; // For Host
 
 export function initPeer(id: string | undefined, onOpen: (id: string) => void, onError?: (err: any) => void) {
-    if (peer) {
-        peer.destroy();
-        // Close invalid connections if re-initializing
-        connections.forEach(c => c.close());
-        connections = [];
+    console.log("Initializing Firebase Sync...");
+    // Fix unused variable warning
+    if (onError) { }
+
+    // Just pass back the ID. Firebase handles the connection.
+    if (id) {
+        onOpen(id);
+    } else {
+        // Fallback for anonymous? Prefer Auth.
+        onOpen("anon_" + Math.random().toString(36).substr(2, 9));
     }
-
-    console.log("Initializing Peer with ID:", id || "Auto-generated");
-
-    // Robust Config for Netlify/Production
-    const config = {
-        secure: true,
-        config: {
-            iceServers: [
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-                { urls: 'stun:stun3.l.google.com:19302' },
-                { urls: 'stun:stun4.l.google.com:19302' },
-            ]
-        }
-    };
-
-    // Use ID if provided, otherwise auto-generate
-    peer = id ? new Peer(id, config) : new Peer(config);
-
-    peer.on('open', (peerId) => {
-        console.log('My Peer ID is: ' + peerId);
-        onOpen(peerId);
-    });
-
-    peer.on('connection', (conn) => {
-        handleIncomingConnection(conn);
-    });
-
-    peer.on('error', (err) => {
-        console.error('Peer error:', err);
-        if (onError) onError(err);
-    });
 }
 
-function handleIncomingConnection(conn: DataConnection) {
-    const store = useGameStore();
+// Called by CLIENT to join a game
+export function connectToHost(roomId: string, onConnected?: () => void, onError?: (msg: string) => void) {
+    // detach old listeners
+    if (unsubscribeState) unsubscribeState();
 
-    conn.on('open', () => {
-        console.log('Connected to: ', conn.peer);
-        connections.push(conn);
+    console.log(`Connecting to Game: ${roomId}`);
 
-        // If I am host, send current state immediately
-        if (store.isHost) {
-            // Strip proxies to avoid serialization issues
-            const payload = JSON.parse(JSON.stringify(store.gameState));
-            conn.send({ type: 'STATE_UPDATE', payload });
-        }
-    });
+    const gameRef = doc(db, "games", roomId);
 
-    conn.on('data', (data: any) => {
-        if (store.isHost) {
-            if (data.type === 'ACTION') {
-                store.processAction(data.payload);
+    unsubscribeState = onSnapshot(gameRef, (doc) => {
+        if (doc.exists()) {
+            const data = doc.data();
+            const store = useGameStore();
+            // Using a timestamp check or versioning could help, but for now strict replace is fine
+            if (data.state) {
+                store.updateState(data.state);
+            }
+            // Fire connected callback on first successful read
+            if (onConnected) {
+                onConnected();
             }
         } else {
-            if (data.type === 'STATE_UPDATE') {
-                store.updateState(data.payload);
-            }
+            console.warn("Game document does not exist!");
+            if (onError) onError("Game room not found");
         }
-    });
-
-    conn.on('close', () => {
-        connections = connections.filter(c => c !== conn);
+    }, (err) => {
+        console.error("Firebase Read Error:", err);
+        if (onError) onError(err.message);
     });
 }
 
-export function connectToHost(hostId: string, onConnected?: () => void, onError?: (msg: string) => void) {
-    if (!peer) {
-        if (onError) onError("Peer not initialized");
-        return;
-    }
+// Called by HOST to start listening for actions
+export function initializeHost(roomId: string) {
+    if (unsubscribeActions) unsubscribeActions();
 
-    console.log(`Attempting to connect to Host: ${hostId}`);
-    const conn = peer.connect(hostId, { reliable: true });
-    hostConnection = conn;
+    console.log(`Host listening for actions in: ${roomId}`);
+    const actionsRef = collection(db, "games", roomId, "actions");
 
-    // Timeout handling
-    const timeout = setTimeout(() => {
-        if (!conn.open) {
-            console.warn("Connection attempt timed out");
-            conn.close();
-            if (onError) onError("Connection timed out. Host may be offline.");
-        }
-    }, 5000);
+    // Listen for new actions
+    unsubscribeActions = onSnapshot(actionsRef, (snapshot) => {
+        snapshot.docChanges().forEach(async (change) => {
+            if (change.type === "added") {
+                const actionData = change.doc.data();
+                const store = useGameStore(); // Always get fresh store
 
-    conn.on('open', () => {
-        clearTimeout(timeout);
-        console.log('✅ Connected to Host!');
-        if (onConnected) onConnected();
-    });
+                console.log("🎮 Action Received:", actionData.type);
+                store.processAction(actionData as any);
 
-    // Critical: Listen for data from host
-    conn.on('data', (data: any) => {
-        const store = useGameStore();
-        if (data.type === 'STATE_UPDATE') {
-            store.updateState(data.payload);
-        }
-    });
-
-    conn.on('error', (err) => {
-        clearTimeout(timeout);
-        console.error("Connection Error:", err);
-        if (onError) onError("Connection Error: " + err);
-    });
-
-    conn.on('close', () => {
-        console.log("Connection closed.");
+                // Delete action after processing to prevent duplicate handling on restart
+                try {
+                    await deleteDoc(change.doc.ref);
+                } catch (e) { console.warn("Failed to cleanup action", e); }
+            }
+        });
     });
 }
 
 export function broadcastState(state: any) {
-    // Only Host calls this
-    const payload = JSON.parse(JSON.stringify(state)); // Strip proxies
-    connections.forEach(conn => {
-        if (conn.open) {
-            conn.send({ type: 'STATE_UPDATE', payload });
-        }
+    const store = useGameStore();
+    const roomId = store.roomId;
+    if (!store.isHost || !roomId) return; // Only Host writes state
+
+    // Write state to Firestore
+    const gameRef = doc(db, "games", roomId);
+
+    // Strip proxies
+    const payload = JSON.parse(JSON.stringify(state));
+
+    setDoc(gameRef, {
+        state: payload,
+        updatedAt: Date.now()
+    }, { merge: true }).catch(err => {
+        console.error("State Sync Error:", err);
     });
 }
 
 export function sendAction(action: any) {
-    // Only Client calls this
-    if (hostConnection && hostConnection.open) {
-        const payload = JSON.parse(JSON.stringify(action)); // Strip proxies
-        hostConnection.send({ type: 'ACTION', payload });
-    } else {
-        console.warn("Not connected to host");
-    }
+    const store = useGameStore();
+    const roomId = store.roomId;
+    if (!roomId) return;
+
+    const actionsRef = collection(db, "games", roomId, "actions");
+    const payload = JSON.parse(JSON.stringify(action));
+
+    addDoc(actionsRef, {
+        ...payload,
+        timestamp: Date.now()
+    }).catch(err => {
+        console.error("Send Action Error:", err);
+    });
 }

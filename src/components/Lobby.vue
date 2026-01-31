@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useGameStore } from '../store/gameStore';
-import { initPeer, connectToHost } from '../multiplayer/peer';
+import { initPeer, connectToHost, initializeHost } from '../multiplayer/peer';
 import { loginWithGoogle, auth, db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -70,7 +70,8 @@ onMounted(() => {
              peerId.value = id;
              initialized.value = true;
           }, (err) => {
-             console.warn("Peer UID init failed (tab conflict?), falling back to random", err);
+             console.warn("Peer UID init failed, falling back", err);
+             // Fallback
              initPeer(undefined, (id) => {
                  peerId.value = id;
                  initialized.value = true;
@@ -103,6 +104,10 @@ async function createGame() {
   
   // Use actual peer ID (which matches UID if logged in successfully)
   const actualId = peerId.value;
+  
+  // Initialize Firestore Host Listener for Actions
+  initializeHost(actualId);
+
   store.setIdentity(actualId, true); // Host
   store.setRoomId(actualId);
   
@@ -136,10 +141,11 @@ function joinGame() {
   store.setIdentity(peerId.value, false); // Client
   store.setRoomId(roomIdInput.value);
   
-  // Connect with error handling
+  // Connect with error handling (Firestore Sync)
   connectToHost(
     roomIdInput.value, 
     () => {
+        // onConnected callback
         joining.value = false;
         store.notify("Connected! Joining game...", "success");
         store.requestAction({
