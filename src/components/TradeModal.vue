@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import { useGameStore } from '../store/gameStore';
 import type { TradeOffer } from '../types';
+import AvatarDisplay from './AvatarDisplay.vue';
 
 const store = useGameStore();
 
@@ -100,7 +101,9 @@ function sendOffer() {
                 :style="{ borderLeft: `4px solid ${t.color}` }"
                 @click="selectTarget(t.id)"
              >
-                <span class="emoji">{{ t.avatar || '👤' }}</span>
+                <div class="emoji">
+                    <AvatarDisplay :avatar="t.avatar" size="30px" />
+                </div>
                 <span class="t-name">{{ t.name }}</span>
              </button>
              

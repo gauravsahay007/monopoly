@@ -4,6 +4,7 @@ import { useGameStore } from '../store/gameStore';
 import { initPeer, connectToHost, initializeHost } from '../multiplayer/peer';
 import { loginWithGoogle, auth, db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import Loader from './Loader.vue';
 
 const store = useGameStore();
 
@@ -199,8 +200,7 @@ function copyRoomLink() {
     <h1 class="title">Monopoly</h1>
     
     <div v-if="!initialized || authLoading" class="loading">
-        <span v-if="authLoading">Verifying Session...</span>
-        <span v-else>Initializing Connection...</span>
+        <Loader :text="authLoading ? 'Verifying Session...' : 'Initializing Connection...'" />
     </div>
     
     <div v-else-if="!store.roomId" class="form">

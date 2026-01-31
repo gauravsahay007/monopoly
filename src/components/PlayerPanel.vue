@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useGameStore } from '../store/gameStore';
 import TradeModal from './TradeModal.vue';
+import AvatarDisplay from './AvatarDisplay.vue';
 import { ref, computed } from 'vue';
 
 const store = useGameStore();
@@ -48,7 +49,7 @@ function getPlayer(id: string) {
           :class="{ active: store.currentPlayer?.id === p.id }"
         >
           <div class="p-avatar" :style="{ backgroundColor: p.color }">
-             <span class="emoji">{{ p.avatar || '👤' }}</span>
+             <AvatarDisplay :avatar="p.avatar" size="28px" />
           </div>
           <div class="p-info">
              <div class="p-name">
@@ -86,11 +87,11 @@ function getPlayer(id: string) {
         <div v-else class="active-trade-card clickable" @click="showTradeDetails = true">
             <div class="trade-row">
                  <div class="t-avatar" :style="{ backgroundColor: getPlayer(store.gameState.currentTrade.initiator)?.color }">
-                     {{ getPlayer(store.gameState.currentTrade.initiator)?.avatar || '👤' }}
+                     <AvatarDisplay :avatar="getPlayer(store.gameState.currentTrade.initiator)?.avatar" size="24px" />
                  </div>
                  <div class="exchange-icon">⇄</div>
                  <div class="t-avatar" :style="{ backgroundColor: getPlayer(store.gameState.currentTrade.target)?.color }">
-                     {{ getPlayer(store.gameState.currentTrade.target)?.avatar || '👤' }}
+                     <AvatarDisplay :avatar="getPlayer(store.gameState.currentTrade.target)?.avatar" size="24px" />
                  </div>
             </div>
             
@@ -540,5 +541,4 @@ function getPlayer(id: string) {
     color: #565f89;
     font-style: italic;
 }
-
 </style>
