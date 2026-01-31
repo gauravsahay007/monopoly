@@ -3,12 +3,14 @@ import { useGameStore } from './store/gameStore';
 import Lobby from './components/Lobby.vue';
 import Board from './components/Board.vue';
 import PlayerPanel from './components/PlayerPanel.vue';
+import ToastContainer from './components/ToastContainer.vue';
 
 const store = useGameStore();
 </script>
 
 <template>
   <div class="app-container">
+    <ToastContainer />
     <transition name="fade" mode="out-in">
       <div v-if="store.gameState.status === 'LOBBY'" key="lobby" class="lobby-view">
         <Lobby />

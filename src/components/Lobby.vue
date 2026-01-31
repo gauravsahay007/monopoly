@@ -15,8 +15,9 @@ const peerId = ref('');
 const showRules = ref(false);
 const selectedColor = ref('#ef4444');
 const authLoading = ref(true);
-const recentRoomId = ref<string | null>(null);
 const joining = ref(false);
+const rejoinRoomId = ref<string | null>(null);
+const editingName = ref(false);
 
 const colors = [
     '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#64748b'
@@ -34,7 +35,6 @@ const rules = ref({
     mapSelection: 'world'
 });
 
-// Watch rules to update defaults based on map
 watch(() => rules.value.mapSelection, (newMap) => {
     if (newMap === 'india' || newMap === 'bangalore') {
         rules.value.startingCash = 15000000;
@@ -44,34 +44,32 @@ watch(() => rules.value.mapSelection, (newMap) => {
 });
 
 onMounted(() => {
-  // Check for room in URL
   const urlParams = new URLSearchParams(window.location.search);
   const rId = urlParams.get('room');
   if (rId) roomIdInput.value = rId;
 
-  // Listen to Auth State
+  const savedGuestId = sessionStorage.getItem('guest_uid');
+  const savedRoom = sessionStorage.getItem('last_room_id');
+
   auth.onAuthStateChanged(async (user) => {
       if (user) {
-          console.log("Auth: Logged in as", user.displayName);
           store.user = user;
           name.value = user.displayName || 'Player';
           
-          // Fetch Recent Room
           try {
               const userDoc = await getDoc(doc(db, "users", user.uid));
               if (userDoc.exists()) {
-                  recentRoomId.value = userDoc.data().lastRoomId;
+                  const lastRoom = userDoc.data().lastRoomId;
+                  if (lastRoom) checkRejoin(lastRoom);
               }
           } catch (e) {
-              console.warn("Firestore read failed", e);
+              // silent fail
           }
 
-          // Initialize Peer with UID
           initPeer(user.uid, (id) => {
              peerId.value = id;
              initialized.value = true;
-          }, (err) => {
-             console.warn("Peer UID init failed, falling back", err);
+          }, (_err) => {
              // Fallback
              initPeer(undefined, (id) => {
                  peerId.value = id;
@@ -79,40 +77,51 @@ onMounted(() => {
              });
           });
       } else {
-          console.log("Auth: Not logged in");
           store.user = null;
-          // Anonymous Peer Init
-          initPeer(undefined, (id) => {
+          // Guest Logic
+          const idToUse = savedGuestId || undefined;
+          
+          initPeer(idToUse, (id) => {
              peerId.value = id;
+             if (!savedGuestId) sessionStorage.setItem('guest_uid', id);
              initialized.value = true;
+             
+             if (savedRoom) checkRejoin(savedRoom);
           });
       }
       authLoading.value = false;
   });
 });
 
+async function checkRejoin(rid: string) {
+    if (!rid) return;
+    try {
+        const d = await getDoc(doc(db, "games", rid));
+        if (d.exists()) {
+             rejoinRoomId.value = rid;
+        }
+    } catch(e) {}
+}
+
 async function handleGoogleLogin() {
     try {
         await loginWithGoogle();
-        // Auth state listener will handle the rest
     } catch (e) {
         store.notify("Login failed", "error");
     }
 }
 
 async function createGame() {
-  if (!name.value) return alert("Enter name");
+  if (!name.value) return store.notify("Enter name", "error");
   
-  // Use actual peer ID (which matches UID if logged in successfully)
   const actualId = peerId.value;
-  
-  // Initialize Firestore Host Listener for Actions
   initializeHost(actualId);
 
-  store.setIdentity(actualId, true); // Host
+  store.setIdentity(actualId, true); 
   store.setRoomId(actualId);
   
-  // Save room preferences/ID to Firestore if logged in
+  sessionStorage.setItem('last_room_id', actualId);
+  
   if (store.user) {
       setDoc(doc(db, "users", store.user.uid), {
           lastRoomId: actualId,
@@ -122,6 +131,7 @@ async function createGame() {
   
   store.gameState.settings = { ...store.gameState.settings, ...rules.value };
   
+  // Host joins immediately
   store.addPlayer({
     id: actualId,
     name: name.value,
@@ -135,44 +145,56 @@ async function createGame() {
   });
 }
 
-function joinGame() {
-  if (!name.value || !roomIdInput.value) return alert("Enter name and room ID");
+function joinGame(rid?: string) {
+  const targetRoom = rid || roomIdInput.value;
+  if (!name.value || !targetRoom) return store.notify("Enter name and room ID", "error");
   
   joining.value = true;
-  store.setIdentity(peerId.value, false); // Client
-  store.setRoomId(roomIdInput.value);
+  store.setIdentity(peerId.value, false); 
+  store.setRoomId(targetRoom);
   
-  // Connect with error handling (Firestore Sync)
+  sessionStorage.setItem('last_room_id', targetRoom);
+
   connectToHost(
-    roomIdInput.value, 
+    targetRoom, 
     () => {
-        // onConnected callback
         joining.value = false;
         store.notify("Connected! Joining game...", "success");
-        store.requestAction({
-            type: 'JOIN',
-            payload: {
-                id: peerId.value,
-                name: name.value,
-                cash: 1500, // Placeholder
-                position: 0,
-                color: selectedColor.value,
-                inJail: false,
-                jailTurns: 0,
-                isHost: false,
-                avatar: store.user?.photoURL || '🙂'
-            },
-            from: peerId.value
-        });
+        sendJoinAction();
     },
     (err: string) => {
         joining.value = false;
         store.notify(err, "error");
-        alert("Failed to join: " + err); // Explicit UI
-        store.setRoomId(""); // Reset room ID on failure
-        store.gameState.status = 'LOBBY'; // Ensure logic stays in lobby
+        store.setRoomId(""); 
+        store.gameState.status = 'LOBBY'; 
     }
   );
+}
+
+function sendJoinAction() {
+    store.requestAction({
+        type: 'JOIN',
+        payload: {
+            id: peerId.value,
+            name: name.value,
+            cash: 1500, // Will be overridden by host rules
+            position: 0, // Overridden if rejoining
+            color: selectedColor.value,
+            inJail: false,
+            jailTurns: 0,
+            isHost: false,
+            avatar: store.user?.photoURL || '🙂'
+        },
+        from: peerId.value
+    });
+}
+
+function updateName() {
+    if (!name.value.trim()) return;
+    editingName.value = false;
+    // Resend JOIN to update name
+    if (store.roomId) sendJoinAction();
+    store.notify("Name updated!", "success");
 }
 
 function startGame() {
@@ -204,7 +226,12 @@ function copyRoomLink() {
     </div>
     
     <div v-else-if="!store.roomId" class="form">
-      <!-- Google Login Button -->
+      <!-- Rejoin Button -->
+      <div v-if="rejoinRoomId" class="rejoin-panel">
+         <p>You were in a game!</p>
+         <button class="btn-rejoin" @click="joinGame(rejoinRoomId)">Rejoin Room</button>
+      </div>
+
       <button v-if="!store.user" class="btn-google" @click="handleGoogleLogin">
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" />
           Sign in with Google
@@ -245,7 +272,6 @@ function copyRoomLink() {
               <span>x2 rent on full-set</span>
               <input type="checkbox" v-model="rules.doubleRentOnSet">
           </div>
-          <!-- Other rules omitted for brevity but logic preserves them -->
            <div class="rule-item">
               <span>Map Type</span>
               <select v-model="rules.mapSelection">
@@ -260,7 +286,7 @@ function copyRoomLink() {
         <button @click="createGame" class="btn-primary">Create Private Game</button>
         <div class="join-area">
           <input v-model="roomIdInput" placeholder="Room Code" />
-          <button @click="joinGame" class="btn-secondary" :disabled="joining">
+          <button @click="joinGame()" class="btn-secondary" :disabled="joining">
               {{ joining ? 'Joining...' : 'Join' }}
           </button>
         </div>
@@ -269,23 +295,36 @@ function copyRoomLink() {
     
     <div v-else class="waiting-room">
       <div class="room-header">
-          <h2>Room Code: <span class="code">{{ store.roomId }}</span></h2>
+          <h2>Room: <span class="code">{{ store.roomId }}</span></h2>
           <div class="share-actions">
-               <button class="btn-icon" @click="copyRoomCode">📋</button>
-               <button class="btn-icon" @click="copyRoomLink">🔗</button>
+               <button class="btn-icon" @click="copyRoomCode" title="Copy Code">📋</button>
+               <button class="btn-icon" @click="copyRoomLink" title="Copy Link">🔗</button>
           </div>
       </div>
-      <p>Share this code with your friends!</p>
+      <p class="share-hint">Share this code with your friends!</p>
       
       <div class="player-list">
         <div v-for="p in store.gameState.players" :key="p.id" class="player-item">
           <div class="swatch-small" :style="{ backgroundColor: p.color }"></div>
-          <span class="p-name">{{ p.name }}</span>
+          
+          <!-- Name Display / Edit -->
+          <div class="p-name-container">
+              <template v-if="p.id === peerId && editingName">
+                  <input v-model="name" class="mini-input" @keyup.enter="updateName" />
+                  <button class="btn-icon-small" @click="updateName">💾</button>
+              </template>
+              <template v-else>
+                  <span class="p-name">{{ p.name }}</span>
+                  <button v-if="p.id === peerId" class="btn-icon-small" @click="editingName = true">✏️</button>
+              </template>
+          </div>
+          
           <span v-if="p.isHost" class="badge">HOST</span>
         </div>
       </div>
       
       <div v-if="store.isHost" class="host-actions">
+        <!-- Validation: Need >1 player? Or debugging allows 1 -->
         <button @click="startGame" class="btn-start" :disabled="store.gameState.players.length < 1">START GAME</button>
       </div>
       <div v-else>
@@ -326,6 +365,14 @@ input, select {
   background: var(--bg-dark);
   color: white;
   margin-top: 0.5rem;
+}
+
+.mini-input {
+    padding: 2px 5px;
+    width: 100px;
+    font-size: 0.8rem;
+    height: auto;
+    margin: 0;
 }
 
 .color-picker {
@@ -402,11 +449,6 @@ input, select {
     font-size: 0.85rem;
 }
 
-.rule-item input[type="checkbox"] {
-    width: auto;
-    margin: 0;
-}
-
 .actions {
   display: flex;
   flex-direction: column;
@@ -423,6 +465,8 @@ input, select {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .player-item {
@@ -432,6 +476,15 @@ input, select {
   background: rgba(255,255,255,0.05);
   padding: 0.5rem;
   border-radius: 8px;
+}
+
+.p-name-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    justify-content: flex-start;
+    text-align: left;
 }
 
 .swatch-small {
@@ -456,9 +509,36 @@ input, select {
 .room-header {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 10px;
+    justify-content: space-between;
+    background: rgba(0,0,0,0.3);
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 10px;
 }
+
+.room-header h2 {
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0;
+    max-width: 70%;
+}
+
+.code {
+    font-family: monospace;
+    background: rgba(255,255,255,0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #7aa2f7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
 .btn-icon {
     background: rgba(255,255,255,0.1);
     border: none;
@@ -466,5 +546,34 @@ input, select {
     cursor: pointer;
     padding: 5px;
     border-radius: 4px;
+}
+
+.btn-icon-small {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 2px;
+}
+
+.share-hint { font-size: 0.8rem; color: #94a3b8; margin-bottom: 1rem; }
+
+.rejoin-panel {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid #10b981;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+.rejoin-panel p { margin: 0 0 5px 0; font-size: 0.9rem; color: #34d399; }
+.btn-rejoin {
+    background: #10b981;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    width: 100%;
+    cursor: pointer;
 }
 </style>
