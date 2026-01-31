@@ -5,21 +5,44 @@ let peer: Peer | null = null;
 let connections: DataConnection[] = []; // Host keeps track of clients
 let hostConnection: DataConnection | null = null; // Client connection to host
 
-export function initPeer(onOpen: (id: string) => void) {
-    peer = new Peer(); // Auto-generate ID
+export function initPeer(id: string | undefined, onOpen: (id: string) => void, onError?: (err: any) => void) {
+    if (peer) {
+        peer.destroy();
+        // Close invalid connections if re-initializing
+        connections.forEach(c => c.close());
+        connections = [];
+    }
 
-    peer.on('open', (id) => {
-        console.log('My Peer ID is: ' + id);
-        onOpen(id);
+    console.log("Initializing Peer with ID:", id || "Auto-generated");
+
+    // Robust Config for Netlify/Production
+    const config = {
+        secure: true,
+        config: {
+            iceServers: [
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' },
+            ]
+        }
+    };
+
+    // Use ID if provided, otherwise auto-generate
+    peer = id ? new Peer(id, config) : new Peer(config);
+
+    peer.on('open', (peerId) => {
+        console.log('My Peer ID is: ' + peerId);
+        onOpen(peerId);
     });
 
     peer.on('connection', (conn) => {
-        // I am being connected to (I am likely Host)
         handleIncomingConnection(conn);
     });
 
     peer.on('error', (err) => {
         console.error('Peer error:', err);
+        if (onError) onError(err);
     });
 }
 
@@ -32,19 +55,18 @@ function handleIncomingConnection(conn: DataConnection) {
 
         // If I am host, send current state immediately
         if (store.isHost) {
-            conn.send({ type: 'STATE_UPDATE', payload: store.gameState });
+            // Strip proxies to avoid serialization issues
+            const payload = JSON.parse(JSON.stringify(store.gameState));
+            conn.send({ type: 'STATE_UPDATE', payload });
         }
     });
 
     conn.on('data', (data: any) => {
-        // Received data
         if (store.isHost) {
-            // Expecting Action
             if (data.type === 'ACTION') {
                 store.processAction(data.payload);
             }
         } else {
-            // Expecting State Update
             if (data.type === 'STATE_UPDATE') {
                 store.updateState(data.payload);
             }
@@ -56,29 +78,56 @@ function handleIncomingConnection(conn: DataConnection) {
     });
 }
 
-export function connectToHost(hostId: string, onConnected?: () => void) {
-    if (!peer) return;
-    const conn = peer.connect(hostId);
+export function connectToHost(hostId: string, onConnected?: () => void, onError?: (msg: string) => void) {
+    if (!peer) {
+        if (onError) onError("Peer not initialized");
+        return;
+    }
+
+    console.log(`Attempting to connect to Host: ${hostId}`);
+    const conn = peer.connect(hostId, { reliable: true });
     hostConnection = conn;
 
+    // Timeout handling
+    const timeout = setTimeout(() => {
+        if (!conn.open) {
+            console.warn("Connection attempt timed out");
+            conn.close();
+            if (onError) onError("Connection timed out. Host may be offline.");
+        }
+    }, 5000);
+
     conn.on('open', () => {
-        console.log('Connected to Host');
+        clearTimeout(timeout);
+        console.log('✅ Connected to Host!');
         if (onConnected) onConnected();
     });
 
+    // Critical: Listen for data from host
     conn.on('data', (data: any) => {
         const store = useGameStore();
         if (data.type === 'STATE_UPDATE') {
             store.updateState(data.payload);
         }
     });
+
+    conn.on('error', (err) => {
+        clearTimeout(timeout);
+        console.error("Connection Error:", err);
+        if (onError) onError("Connection Error: " + err);
+    });
+
+    conn.on('close', () => {
+        console.log("Connection closed.");
+    });
 }
 
 export function broadcastState(state: any) {
     // Only Host calls this
+    const payload = JSON.parse(JSON.stringify(state)); // Strip proxies
     connections.forEach(conn => {
         if (conn.open) {
-            conn.send({ type: 'STATE_UPDATE', payload: state });
+            conn.send({ type: 'STATE_UPDATE', payload });
         }
     });
 }
@@ -86,7 +135,8 @@ export function broadcastState(state: any) {
 export function sendAction(action: any) {
     // Only Client calls this
     if (hostConnection && hostConnection.open) {
-        hostConnection.send({ type: 'ACTION', payload: action });
+        const payload = JSON.parse(JSON.stringify(action)); // Strip proxies
+        hostConnection.send({ type: 'ACTION', payload });
     } else {
         console.warn("Not connected to host");
     }
