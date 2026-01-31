@@ -9,9 +9,6 @@ const props = defineProps<{
 
 const emit = defineEmits(['close']);
 
-import { useGameStore } from '../store/gameStore';
-const store = useGameStore();
-
 function getRent(index: number) {
     if (!props.tile || !props.tile.rent) return 0;
     return props.tile.rent[index] || 0;
@@ -34,133 +31,45 @@ function getRent(index: number) {
             <div v-if="tile.type === 'PROPERTY'">
                 <div class="rent-row">
                     <span>Rent</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(getRent(0)) }}</span>
+                    <span>${{ getRent(0) }}</span>
                 </div>
                 <div class="rent-row">
                     <span>With 1 House</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(getRent(1)) }}</span>
+                    <span>${{ getRent(1) }}</span>
                 </div>
                 <div class="rent-row">
                     <span>With 2 Houses</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(getRent(2)) }}</span>
+                    <span>${{ getRent(2) }}</span>
                 </div>
                 <div class="rent-row">
                     <span>With 3 Houses</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(getRent(3)) }}</span>
+                    <span>${{ getRent(3) }}</span>
                 </div>
                 <div class="rent-row">
                     <span>With 4 Houses</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(getRent(4)) }}</span>
+                    <span>${{ getRent(4) }}</span>
                 </div>
                 <div class="rent-row">
                     <span>With HOTEL</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(getRent(5)) }}</span>
+                    <span>${{ getRent(5) }}</span>
                 </div>
                 
                 <hr>
                 
                 <div class="info-row">
                     <span>Mortgage Value</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(Math.floor(tile.price / 2)) }}</span>
+                    <span>${{ Math.floor(tile.price / 2) }}</span>
                 </div>
                 <div class="info-row">
                     <span>House Cost</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(tile.buildCost || 50) }}</span>
+                    <span>${{ tile.buildCost || 50 }}</span>
                 </div> <!-- buildCost missing in logic, default 50 -->
             </div>
             
-            <!-- Airport Rules -->
-            <div v-else-if="tile.type === 'AIRPORT'" class="rules-info">
-                <h3>✈️ Airport Rent Rules</h3>
-                <div class="rent-row">
-                    <span>1 Airport Owned</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(100000) }}</span>
-                </div>
-                <div class="rent-row">
-                    <span>2 Airports Owned</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(200000) }} (2×)</span>
-                </div>
-                <div class="rent-row">
-                    <span>3 Airports Owned</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(400000) }} (4×)</span>
-                </div>
-                <div class="rent-row">
-                    <span>4 Airports Owned</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(800000) }} (8×)</span>
-                </div>
-                <p class="rule-note">💡 Rent doubles for each additional airport owned!</p>
-                <p v-if="tile.price">Price: {{ store.currencySymbol }}{{ store.formatCurrency(tile.price) }}</p>
-            </div>
-            
-            <!-- Utility Rules -->
-            <div v-else-if="tile.type === 'UTILITY'" class="rules-info">
-                <h3>⚡ Utility Rent Rules</h3>
-                <div class="info-row">
-                    <span>1 Utility Owned</span>
-                    <span>Dice × 4</span>
-                </div>
-                <div class="info-row">
-                    <span>2 Utilities Owned</span>
-                    <span>Dice × 10</span>
-                </div>
-                <div class="info-row">
-                    <span>3 Utilities Owned</span>
-                    <span>Dice × 20</span>
-                </div>
-                <p class="rule-note">💡 Rent = Your dice roll × multiplier</p>
-                <p class="rule-note">Example: Roll 7 with 1 utility = {{ store.currencySymbol }}28 rent</p>
-                <p class="rule-note">Example: Roll 7 with 2 utilities = {{ store.currencySymbol }}70 rent</p>
-                <p class="rule-note">Example: Roll 7 with 3 utilities = {{ store.currencySymbol }}140 rent (Monopoly!)</p>
-                <p v-if="tile.price">Price: {{ store.currencySymbol }}{{ store.formatCurrency(tile.price) }}</p>
-            </div>
-            
-            <!-- Prison/Jail Rules -->
-            <div v-else-if="tile.type === 'PRISON' || tile.name.toLowerCase().includes('jail')" class="rules-info">
-                <h3>🚔 Prison/Jail Rules</h3>
-                <p><strong>Just Visiting:</strong> No penalty if just landing here</p>
-                <p><strong>Sent to Jail:</strong> When sent here by:</p>
-                <ul>
-                    <li>"Go to Prison" tile</li>
-                    <li>Card instruction</li>
-                    <li>Rolling 3 doubles in a row</li>
-                </ul>
-                <p><strong>To Get Out:</strong></p>
-                <ul>
-                    <li>🎲 Roll doubles (free release)</li>
-                    <li>💰 Pay fine: {{ store.currencySymbol }}{{ store.formatCurrency(50000) }}</li>
-                    <li>📄 Use "Get Out of Jail Free" card</li>
-                    <li>⏰ After 3 failed rolls (forced fine)</li>
-                </ul>
-            </div>
-            
-            <!-- Vacation/Free Parking Rules -->
-            <div v-else-if="tile.type === 'VACATION'" class="rules-info">
-                <h3>🏖️ Vacation (Free Parking) Rules</h3>
-                <p><strong>Collect the Pot!</strong></p>
-                <p>All tax money and fines are collected here.</p>
-                <p>When you land on this space, you win the entire pot!</p>
-                <p class="rule-note">💰 Current pot grows from taxes and penalties</p>
-            </div>
-            
-            <!-- Tax Rules -->
-            <div v-else-if="tile.type === 'TAX'" class="rules-info">
-                <h3>💸 Tax Rules</h3>
-                <p v-if="tile.name === 'Income Tax'">
-                    <strong>Income Tax:</strong><br>
-                    Pay {{ store.currencySymbol }}{{ store.formatCurrency(tile.amount || 0) }}
-                </p>
-                <p v-else-if="tile.name === 'Luxury Tax'">
-                    <strong>Luxury Tax:</strong><br>
-                    Pay {{ store.currencySymbol }}{{ store.formatCurrency(tile.amount || 0) }}
-                </p>
-                <p class="rule-note">💡 All taxes go to the Vacation pot!</p>
-            </div>
-            
-            <!-- Other tiles -->
             <div v-else class="simple-info">
                 <p>{{ tile.type }}</p>
-                <p v-if="tile.price">Price: {{ store.currencySymbol }}{{ store.formatCurrency(tile.price) }}</p>
-                <p v-if="tile.amount">Amount: {{ store.currencySymbol }}{{ store.formatCurrency(tile.amount) }}</p>
+                <p v-if="tile.price">Price: ${{ tile.price }}</p>
+                <p v-if="tile.amount">Tax: ${{ tile.amount }}</p>
             </div>
             
             <div v-if="tile.owner" class="owner-section">
@@ -243,42 +152,6 @@ function getRent(index: number) {
     font-weight: bold;
 }
 
-.rules-info {
-    color: #e2e8f0;
-}
-
-.rules-info h3 {
-    margin: 0.5rem 0;
-    font-size: 1.1rem;
-    color: #fbbf24;
-}
-
-.rules-info p {
-    margin: 0.5rem 0;
-    line-height: 1.5;
-}
-
-.rules-info ul {
-    margin: 0.5rem 0;
-    padding-left: 1.5rem;
-    line-height: 1.7;
-}
-
-.rules-info li {
-    margin: 0.3rem 0;
-}
-
-.rule-note {
-    background: rgba(251, 191, 36, 0.1);
-    border-left: 3px solid #fbbf24;
-    padding: 0.5rem;
-    margin: 0.5rem 0;
-    border-radius: 4px;
-    font-size: 0.85rem;
-    color: #fcd34d;
-}
-
-
 .close-btn {
     width: 100%;
     padding: 1rem;
@@ -305,55 +178,7 @@ function getRent(index: number) {
 .bg-yellow { background-color: #eab308; color: #111; text-shadow: none !important;}
 .bg-green { background-color: #16a34a; }
 .bg-blue { background-color: #2563eb; }
-.bg-dark-blue { background-color: #1e3a8a; }
 .bg-airport { background-color: #475569; }
 .bg-utility { background-color: #4b5563; }
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
-  .modal-content {
-    max-width: 90vw;
-    max-height: 80vh;
-    padding: 1.2rem;
-  }
-  
-  .modal-header h2 {
-    font-size: 1.3rem;
-  }
-  
-  .modal-body {
-    font-size: 0.85rem;
-  }
-  
-  .rent-row, .info-row {
-    font-size: 0.8rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .modal-content {
-    max-width: 95vw;
-    max-height: 85vh;
-    padding: 1rem;
-  }
-  
-  .modal-header h2 {
-    font-size: 1.1rem;
-  }
-  
-  .modal-body {
-    font-size: 0.75rem;
-  }
-  
-  .rent-row, .info-row {
-    font-size: 0.7rem;
-  }
-  
-  .close-btn {
-    padding: 0.8rem;
-    font-size: 0.9rem;
-  }
-}
-
 
 </style>

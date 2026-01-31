@@ -10,15 +10,15 @@
     {
         "id": 1,
         "type": "PROPERTY",
-        "name": "Raxaul",
-        "price": 5000,
+        "name": "Jaipur",
+        "price": 60,
         "rent": [
-            500,
-            2000,
-            6000,
-            18000,
-            30000,
-            45000
+            2,
+            10,
+            30,
+            90,
+            160,
+            250
         ],
         "group": "brown",
         "country": "in"
@@ -34,15 +34,15 @@
     {
         "id": 3,
         "type": "PROPERTY",
-        "name": "Patna",
-        "price": 15000,
+        "name": "Lucknow",
+        "price": 60,
         "rent": [
-            1000,
-            4000,
-            12000,
-            36000,
-            60000,
-            90000
+            4,
+            20,
+            60,
+            180,
+            320,
+            450
         ],
         "group": "brown",
         "country": "in"
@@ -54,71 +54,39 @@
         "price": 0,
         "rent": [],
         "group": "special",
-        "amount": 200000
+        "amount": 200
     },
     {
         "id": 5,
-        "type": "PROPERTY",
-        "name": "Ahmedabad",
-        "price": 30000,
-        "rent": [
-            2000,
-            10000,
-            30000,
-            90000,
-            150000,
-            250000
-        ],
-        "group": "light-blue",
-        "country": "in"
-    },
-    {
-        "id": 6,
         "type": "AIRPORT",
-        "name": "LKO Airport",
-        "price": 1000000,
+        "name": "Ch. Charan Singh (LKO)",
+        "price": 200,
         "rent": [
-            100000,
-            200000,
-            400000,
-            800000
+            25,
+            50,
+            100,
+            200
         ],
         "group": "airport"
     },
     {
+        "id": 6,
+        "type": "PROPERTY",
+        "name": "Ahmedabad",
+        "price": 100,
+        "rent": [
+            6,
+            30,
+            90,
+            270,
+            400,
+            550
+        ],
+        "group": "light-blue",
+        "country": "in"
+    },
+    {
         "id": 7,
-        "type": "PROPERTY",
-        "name": "Surat",
-        "price": 30000,
-        "rent": [
-            2000,
-            10000,
-            30000,
-            90000,
-            150000,
-            250000
-        ],
-        "group": "light-blue",
-        "country": "in"
-    },
-    {
-        "id": 8,
-        "type": "PROPERTY",
-        "name": "Vadodara",
-        "price": 60000,
-        "rent": [
-            4000,
-            20000,
-            60000,
-            180000,
-            300000,
-            450000
-        ],
-        "group": "light-blue",
-        "country": "in"
-    },
-    {
-        "id": 9,
         "type": "SURPRISE",
         "name": "Chance",
         "price": 0,
@@ -126,57 +94,81 @@
         "group": "special"
     },
     {
-        "id": 10,
+        "id": 8,
         "type": "PROPERTY",
-        "name": "Chennai",
-        "price": 100000,
+        "name": "Pune",
+        "price": 100,
         "rent": [
-            8000,
-            40000,
-            120000,
-            360000,
-            600000,
-            900000
+            6,
+            30,
+            90,
+            270,
+            400,
+            550
         ],
-        "group": "pink",
+        "group": "light-blue",
         "country": "in"
+    },
+    {
+        "id": 9,
+        "type": "PROPERTY",
+        "name": "Hyderabad",
+        "price": 120,
+        "rent": [
+            8,
+            40,
+            100,
+            300,
+            450,
+            600
+        ],
+        "group": "light-blue",
+        "country": "in"
+    },
+    {
+        "id": 10,
+        "type": "JAIL_VISIT",
+        "name": "Jail Visit",
+        "price": 0,
+        "rent": [],
+        "group": "special"
     },
     {
         "id": 11,
         "type": "PROPERTY",
-        "name": "Coimbatore",
-        "price": 100000,
+        "name": "Kolkata",
+        "price": 140,
         "rent": [
-            8000,
-            40000,
-            120000,
-            360000,
-            600000,
-            900000
+            10,
+            50,
+            150,
+            450,
+            625,
+            750
         ],
         "group": "pink",
         "country": "in"
     },
     {
         "id": 12,
-        "type": "PRISON",
-        "name": "Just Visiting",
-        "price": 0,
+        "type": "UTILITY",
+        "name": "Electric Company",
+        "price": 150,
         "rent": [],
-        "group": "special"
+        "group": "utility"
     },
     {
         "id": 13,
         "type": "PROPERTY",
-        "name": "Madurai",
-        "price": 200000,
+        "name": "Chennai",
+        "price": 140,
         "rent": [
-            15000,
-            75000,
-            225000,
-            675000,
-            1000000,
-            1500000
+            10,
+            50,
+            150,
+            450,
+            625,
+            750
         ],
         "group": "pink",
         "country": "in"
@@ -184,92 +176,92 @@
     {
         "id": 14,
         "type": "PROPERTY",
-        "name": "Jaipur",
-        "price": 300000,
+        "name": "Goa",
+        "price": 160,
         "rent": [
-            20000,
-            100000,
-            300000,
-            900000,
-            1500000,
-            2200000
+            12,
+            60,
+            180,
+            500,
+            700,
+            900
         ],
-        "group": "orange",
+        "group": "pink",
         "country": "in"
     },
     {
         "id": 15,
-        "type": "UTILITY",
-        "name": "BSNL Network",
-        "price": 500000,
-        "rent": [],
-        "group": "utility"
+        "type": "AIRPORT",
+        "name": "Netaji Bose (CCU)",
+        "price": 200,
+        "rent": [
+            25,
+            50,
+            100,
+            200
+        ],
+        "group": "airport"
     },
     {
         "id": 16,
         "type": "PROPERTY",
-        "name": "Udaipur",
-        "price": 300000,
+        "name": "Chandigarh",
+        "price": 180,
         "rent": [
-            20000,
-            100000,
-            300000,
-            900000,
-            1500000,
-            2200000
+            14,
+            70,
+            200,
+            550,
+            750,
+            950
         ],
         "group": "orange",
         "country": "in"
     },
     {
         "id": 17,
+        "type": "TREASURE",
+        "name": "Community Chest",
+        "price": 0,
+        "rent": [],
+        "group": "special"
+    },
+    {
+        "id": 18,
         "type": "PROPERTY",
-        "name": "Jodhpur",
-        "price": 500000,
+        "name": "Indore",
+        "price": 180,
         "rent": [
-            35000,
-            175000,
-            525000,
-            1500000,
-            2200000,
-            3000000
+            14,
+            70,
+            200,
+            550,
+            750,
+            950
         ],
         "group": "orange",
         "country": "in"
     },
     {
-        "id": 18,
-        "type": "AIRPORT",
-        "name": "MAA Airport",
-        "price": 1000000,
-        "rent": [
-            100000,
-            200000,
-            400000,
-            800000
-        ],
-        "group": "airport"
-    },
-    {
         "id": 19,
         "type": "PROPERTY",
-        "name": "Bengaluru",
-        "price": 800000,
+        "name": "Kochi",
+        "price": 200,
         "rent": [
-            60000,
-            300000,
-            900000,
-            2700000,
-            4000000,
-            5500000
+            16,
+            80,
+            220,
+            600,
+            800,
+            1000
         ],
-        "group": "red",
+        "group": "orange",
         "country": "in"
     },
     {
         "id": 20,
-        "type": "TREASURE",
-        "name": "Community Chest",
+        "type": "VACATION",
+        "name": "Free Parking",
         "price": 0,
         "rent": [],
         "group": "special"
@@ -277,69 +269,21 @@
     {
         "id": 21,
         "type": "PROPERTY",
-        "name": "Mysuru",
-        "price": 800000,
+        "name": "Bengaluru",
+        "price": 220,
         "rent": [
-            60000,
-            300000,
-            900000,
-            2700000,
-            4000000,
-            5500000
+            18,
+            90,
+            250,
+            700,
+            875,
+            1050
         ],
         "group": "red",
         "country": "in"
     },
     {
         "id": 22,
-        "type": "UTILITY",
-        "name": "Reliance Jio",
-        "price": 500000,
-        "rent": [],
-        "group": "utility"
-    },
-    {
-        "id": 23,
-        "type": "PROPERTY",
-        "name": "Mangaluru",
-        "price": 1200000,
-        "rent": [
-            90000,
-            450000,
-            1350000,
-            4000000,
-            5500000,
-            7000000
-        ],
-        "group": "red",
-        "country": "in"
-    },
-    {
-        "id": 24,
-        "type": "VACATION",
-        "name": "Goa Beach",
-        "price": 0,
-        "rent": [],
-        "group": "special"
-    },
-    {
-        "id": 25,
-        "type": "PROPERTY",
-        "name": "New Delhi",
-        "price": 2000000,
-        "rent": [
-            150000,
-            750000,
-            2200000,
-            6500000,
-            9000000,
-            12000000
-        ],
-        "group": "yellow",
-        "country": "in"
-    },
-    {
-        "id": 26,
         "type": "SURPRISE",
         "name": "Chance",
         "price": 0,
@@ -347,132 +291,108 @@
         "group": "special"
     },
     {
-        "id": 27,
+        "id": 23,
         "type": "PROPERTY",
         "name": "Gurugram",
-        "price": 2000000,
+        "price": 220,
         "rent": [
-            150000,
-            750000,
-            2200000,
-            6500000,
-            9000000,
-            12000000
+            18,
+            90,
+            250,
+            700,
+            875,
+            1050
+        ],
+        "group": "red",
+        "country": "in"
+    },
+    {
+        "id": 24,
+        "type": "PROPERTY",
+        "name": "Noida",
+        "price": 240,
+        "rent": [
+            20,
+            100,
+            300,
+            750,
+            925,
+            1100
+        ],
+        "group": "red",
+        "country": "in"
+    },
+    {
+        "id": 25,
+        "type": "AIRPORT",
+        "name": "Kempegowda (BLR)",
+        "price": 200,
+        "rent": [
+            25,
+            50,
+            100,
+            200
+        ],
+        "group": "airport"
+    },
+    {
+        "id": 26,
+        "type": "PROPERTY",
+        "name": "New Delhi",
+        "price": 260,
+        "rent": [
+            22,
+            110,
+            330,
+            800,
+            975,
+            1150
+        ],
+        "group": "yellow",
+        "country": "in"
+    },
+    {
+        "id": 27,
+        "type": "PROPERTY",
+        "name": "South Delhi",
+        "price": 260,
+        "rent": [
+            22,
+            110,
+            330,
+            800,
+            975,
+            1150
         ],
         "group": "yellow",
         "country": "in"
     },
     {
         "id": 28,
-        "type": "TREASURE",
-        "name": "Community Chest",
-        "price": 0,
+        "type": "UTILITY",
+        "name": "Water Works",
+        "price": 150,
         "rent": [],
-        "group": "special"
+        "group": "utility"
     },
     {
         "id": 29,
         "type": "PROPERTY",
-        "name": "Noida",
-        "price": 3500000,
+        "name": "Connaught Place",
+        "price": 280,
         "rent": [
-            250000,
-            1200000,
-            3500000,
-            10000000,
-            14000000,
-            18000000
+            24,
+            120,
+            360,
+            850,
+            1025,
+            1200
         ],
         "group": "yellow",
         "country": "in"
     },
     {
         "id": 30,
-        "type": "AIRPORT",
-        "name": "DEL Airport",
-        "price": 1000000,
-        "rent": [
-            100000,
-            200000,
-            400000,
-            800000
-        ],
-        "group": "airport"
-    },
-    {
-        "id": 31,
-        "type": "PROPERTY",
-        "name": "Pune",
-        "price": 5000000,
-        "rent": [
-            400000,
-            2000000,
-            6000000,
-            18000000,
-            25000000,
-            32000000
-        ],
-        "group": "green",
-        "country": "in"
-    },
-    {
-        "id": 32,
-        "type": "PROPERTY",
-        "name": "Nashik",
-        "price": 5000000,
-        "rent": [
-            400000,
-            2000000,
-            6000000,
-            18000000,
-            25000000,
-            32000000
-        ],
-        "group": "green",
-        "country": "in"
-    },
-    {
-        "id": 33,
-        "type": "UTILITY",
-        "name": "Airtel Network",
-        "price": 500000,
-        "rent": [],
-        "group": "utility"
-    },
-    {
-        "id": 34,
-        "type": "PROPERTY",
-        "name": "Nagpur",
-        "price": 7500000,
-        "rent": [
-            600000,
-            3000000,
-            9000000,
-            25000000,
-            35000000,
-            45000000
-        ],
-        "group": "green",
-        "country": "in"
-    },
-    {
-        "id": 35,
-        "type": "PROPERTY",
-        "name": "Aurangabad",
-        "price": 7500000,
-        "rent": [
-            600000,
-            3000000,
-            9000000,
-            25000000,
-            35000000,
-            45000000
-        ],
-        "group": "green",
-        "country": "in"
-    },
-    {
-        "id": 36,
         "type": "JAIL_VISIT",
         "name": "Go to Prison",
         "price": 0,
@@ -480,39 +400,39 @@
         "group": "special"
     },
     {
-        "id": 37,
+        "id": 31,
         "type": "PROPERTY",
         "name": "Bandra",
-        "price": 10000000,
+        "price": 300,
         "rent": [
-            800000,
-            4000000,
-            12000000,
-            35000000,
-            50000000,
-            60000000
+            26,
+            130,
+            390,
+            900,
+            1100,
+            1275
         ],
-        "group": "dark-blue",
+        "group": "green",
         "country": "in"
     },
     {
-        "id": 38,
+        "id": 32,
         "type": "PROPERTY",
-        "name": "Worli",
-        "price": 10000000,
+        "name": "Juhu",
+        "price": 300,
         "rent": [
-            800000,
-            4000000,
-            12000000,
-            35000000,
-            50000000,
-            60000000
+            26,
+            130,
+            390,
+            900,
+            1100,
+            1275
         ],
-        "group": "dark-blue",
+        "group": "green",
         "country": "in"
     },
     {
-        "id": 39,
+        "id": 33,
         "type": "TREASURE",
         "name": "Community Chest",
         "price": 0,
@@ -520,68 +440,36 @@
         "group": "special"
     },
     {
-        "id": 40,
-        "type": "PROPERTY",
-        "name": "Marine Drive",
-        "price": 15000000,
-        "rent": [
-            1200000,
-            6000000,
-            18000000,
-            50000000,
-            70000000,
-            90000000
-        ],
-        "group": "dark-blue",
-        "country": "in"
-    },
-    {
-        "id": 41,
+        "id": 34,
         "type": "PROPERTY",
         "name": "South Mumbai",
-        "price": 15000000,
+        "price": 320,
         "rent": [
-            1200000,
-            6000000,
-            18000000,
-            50000000,
-            70000000,
-            90000000
+            28,
+            150,
+            450,
+            1000,
+            1200,
+            1400
         ],
-        "group": "dark-blue",
+        "group": "green",
         "country": "in"
     },
     {
-        "id": 42,
+        "id": 35,
         "type": "AIRPORT",
-        "name": "BOM Airport",
-        "price": 1000000,
+        "name": "Chatrapati Shivaji (BOM)",
+        "price": 200,
         "rent": [
-            100000,
-            200000,
-            400000,
-            800000
+            25,
+            50,
+            100,
+            200
         ],
         "group": "airport"
     },
     {
-        "id": 43,
-        "type": "PROPERTY",
-        "name": "Kanpur",
-        "price": 20000000,
-        "rent": [
-            1500000,
-            7500000,
-            25000000,
-            60000000,
-            80000000,
-            100000000
-        ],
-        "group": "blue",
-        "country": "in"
-    },
-    {
-        "id": 44,
+        "id": 36,
         "type": "SURPRISE",
         "name": "Chance",
         "price": 0,
@@ -589,42 +477,42 @@
         "group": "special"
     },
     {
-        "id": 45,
+        "id": 37,
         "type": "PROPERTY",
-        "name": "Lucknow",
-        "price": 20000000,
+        "name": "Worli",
+        "price": 350,
         "rent": [
-            1500000,
-            7500000,
-            25000000,
-            60000000,
-            80000000,
-            100000000
+            35,
+            175,
+            500,
+            1100,
+            1300,
+            1500
         ],
         "group": "blue",
         "country": "in"
     },
     {
-        "id": 46,
+        "id": 38,
         "type": "TAX",
         "name": "Luxury Tax",
         "price": 0,
         "rent": [],
         "group": "special",
-        "amount": 500000
+        "amount": 100
     },
     {
-        "id": 47,
+        "id": 39,
         "type": "PROPERTY",
-        "name": "Prayagraj",
-        "price": 25000000,
+        "name": "Malabar Hill",
+        "price": 400,
         "rent": [
-            2000000,
-            10000000,
-            30000000,
-            80000000,
-            110000000,
-            150000000
+            50,
+            200,
+            600,
+            1400,
+            1700,
+            2000
         ],
         "group": "blue",
         "country": "in"

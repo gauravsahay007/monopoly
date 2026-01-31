@@ -19,7 +19,7 @@ function declareBankruptcy() {
 
 // Placeholder for Votekick
 function votekick() {
-    store.notify("Votekick functionality coming soon!", "info");
+    alert("Votekick functionality coming soon!");
 }
 
 const myProps = computed(() => {
@@ -48,9 +48,7 @@ function getPlayer(id: string) {
           :class="{ active: store.currentPlayer?.id === p.id }"
         >
           <div class="p-avatar" :style="{ backgroundColor: p.color }">
-             <img v-if="p.avatar?.startsWith('data:')" :src="p.avatar" class="avatar-img" />
-             <div v-else-if="p.avatar?.includes('<svg')" v-html="p.avatar" class="avatar-svg"></div>
-             <span v-else class="emoji">{{ p.avatar || '👤' }}</span>
+             <span class="emoji">{{ p.avatar || '👤' }}</span>
           </div>
           <div class="p-info">
              <div class="p-name">
@@ -58,7 +56,7 @@ function getPlayer(id: string) {
                  <span v-if="p.isHost" class="crown">👑</span>
                  <span v-if="p.inJail" class="jail-icon">🔒</span>
              </div>
-             <div class="p-cash" v-if="!p.bankrupt">{{ store.currencySymbol }}{{ store.formatCurrency(p.cash) }}</div>
+             <div class="p-cash" v-if="!p.bankrupt">${{ p.cash }}</div>
              <div class="p-bankrupt" v-else>BANKRUPT</div>
           </div>
         </div>
@@ -76,7 +74,7 @@ function getPlayer(id: string) {
     <div class="trades-section">
         <div class="section-header">
             <span>Trades</span>
-            <button class="btn-create" @click="showTrade = true" :disabled="store.me?.inJail || !store.isMyTurn || !!store.gameState.currentTrade">
+            <button class="btn-create" @click="showTrade = true" :disabled="!store.isMyTurn || !!store.gameState.currentTrade">
                ➕ Create
             </button>
         </div>
@@ -88,15 +86,11 @@ function getPlayer(id: string) {
         <div v-else class="active-trade-card clickable" @click="showTradeDetails = true">
             <div class="trade-row">
                  <div class="t-avatar" :style="{ backgroundColor: getPlayer(store.gameState.currentTrade.initiator)?.color }">
-                     <img v-if="getPlayer(store.gameState.currentTrade.initiator)?.avatar?.startsWith('data:')" :src="getPlayer(store.gameState.currentTrade.initiator)?.avatar" class="avatar-img" />
-                     <div v-else-if="getPlayer(store.gameState.currentTrade.initiator)?.avatar?.includes('<svg')" v-html="getPlayer(store.gameState.currentTrade.initiator)?.avatar" class="avatar-svg"></div>
-                     <span v-else>{{ getPlayer(store.gameState.currentTrade.initiator)?.avatar || '👤' }}</span>
+                     {{ getPlayer(store.gameState.currentTrade.initiator)?.avatar || '👤' }}
                  </div>
                  <div class="exchange-icon">⇄</div>
                  <div class="t-avatar" :style="{ backgroundColor: getPlayer(store.gameState.currentTrade.target)?.color }">
-                     <img v-if="getPlayer(store.gameState.currentTrade.target)?.avatar?.startsWith('data:')" :src="getPlayer(store.gameState.currentTrade.target)?.avatar" class="avatar-img" />
-                     <div v-else-if="getPlayer(store.gameState.currentTrade.target)?.avatar?.includes('<svg')" v-html="getPlayer(store.gameState.currentTrade.target)?.avatar" class="avatar-svg"></div>
-                     <span v-else>{{ getPlayer(store.gameState.currentTrade.target)?.avatar || '👤' }}</span>
+                     {{ getPlayer(store.gameState.currentTrade.target)?.avatar || '👤' }}
                  </div>
             </div>
             
@@ -147,7 +141,7 @@ function getPlayer(id: string) {
             <div class="trade-split">
                 <div class="side">
                     <h4>{{ getPlayer(store.gameState.currentTrade.initiator)?.name }} Gives:</h4>
-                    <div class="cash" v-if="store.gameState.currentTrade.offerCash > 0">💵 {{ store.currencySymbol }}{{ store.formatCurrency(store.gameState.currentTrade.offerCash) }}</div>
+                    <div class="cash" v-if="store.gameState.currentTrade.offerCash > 0">💵 ${{ store.gameState.currentTrade.offerCash }}</div>
                     <div v-for="pid in store.gameState.currentTrade.offerProperties" :key="pid">
                          🏠 {{ store.gameState.board.find(t => t.id === pid)?.name }}
                     </div>
@@ -155,7 +149,7 @@ function getPlayer(id: string) {
                 <div class="divider">⇄</div>
                 <div class="side">
                     <h4>{{ getPlayer(store.gameState.currentTrade.target)?.name }} Gives:</h4>
-                    <div class="cash" v-if="store.gameState.currentTrade.requestCash > 0">💵 {{ store.currencySymbol }}{{ store.formatCurrency(store.gameState.currentTrade.requestCash) }}</div>
+                    <div class="cash" v-if="store.gameState.currentTrade.requestCash > 0">💵 ${{ store.gameState.currentTrade.requestCash }}</div>
                     <div v-for="pid in store.gameState.currentTrade.requestProperties" :key="pid">
                          🏠 {{ store.gameState.board.find(t => t.id === pid)?.name }}
                     </div>
@@ -545,85 +539,6 @@ function getPlayer(id: string) {
     font-size: 0.7rem;
     color: #565f89;
     font-style: italic;
-}
-
-.avatar-img, .avatar-svg {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    object-fit: cover;
-    overflow: hidden;
-}
-.avatar-svg :deep(svg) {
-    width: 100%;
-    height: 100%;
-}
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
-  .panel {
-    width: 100%;
-    max-height: 40vh;
-    position: relative;
-    border-left: none;
-    border-top: 2px solid #334155;
-    overflow-y: auto;
-  }
-  
-  .section-title {
-    font-size: 0.9rem;
-  }
-  
-  .player-row {
-    padding: 0.6rem;
-  }
-  
-  .p-avatar {
-    width: 35px;
-    height: 35px;
-  }
-  
-  .p-name {
-    font-size: 0.85rem;
-  }
-  
-  .p-cash {
-    font-size: 0.75rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .panel {
-    max-height: 35vh;
-    font-size: 0.8rem;
-  }
-  
-  .section-title {
-    font-size: 0.8rem;
-    padding: 0.4rem 0.6rem;
-  }
-  
-  .player-row {
-    padding: 0.5rem;
-  }
-  
-  .p-avatar {
-    width: 30px;
-    height: 30px;
-  }
-  
-  .p-name {
-    font-size: 0.75rem;
-  }
-  
-  .p-cash {
-    font-size: 0.7rem;
-  }
-  
-  .action-row button {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.75rem;
-  }
 }
 
 </style>

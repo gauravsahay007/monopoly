@@ -4,32 +4,12 @@ import Tile from './Tile.vue';
 import Dice from './Dice.vue';
 import PropertyModal from './PropertyModal.vue';
 import TradeModal from './TradeModal.vue';
-import { ref, watch, nextTick, onMounted } from 'vue';
+import { ref } from 'vue';
 import type { Tile as TileType } from '../types';
 
 const store = useGameStore();
 const selectedTile = ref<TileType | null>(null);
 const showTrade = ref(false);
-const eventLogRef = ref<HTMLElement | null>(null);
-
-// Function to scroll to top (newest events are at index 0 due to unshift)
-const scrollToTop = () => {
-  if (eventLogRef.value) {
-    eventLogRef.value.scrollTop = 0;
-  }
-};
-
-// Auto-scroll to latest event on mount
-onMounted(async () => {
-  await nextTick();
-  setTimeout(scrollToTop, 100);
-});
-
-// Auto-scroll to latest event when new events are added
-watch(() => [...store.gameState.lastActionLog], async () => {
-  await nextTick();
-  setTimeout(scrollToTop, 100);
-}, { deep: true });
 
 function getGridStyle(index: number) {
   // 13x13 Grid
@@ -66,18 +46,8 @@ function getOwner(tile: TileType | null) {
       <div class="center-area">
         <h1 class="logo">Chilling Guys<br>Monopoly! 🥶</h1>
         
-        <!-- Scrollable Event Log -->
-        <div class="event-log" ref="eventLogRef">
-           <div 
-              v-for="(event, index) in store.gameState.lastActionLog" 
-              :key="index"
-              class="event-item"
-           >
-              {{ event }}
-           </div>
-           <div v-if="store.gameState.lastActionLog.length === 0" class="event-placeholder">
-              Game events will appear here...
-           </div>
+        <div class="status-msg" v-if="store.gameState.lastActionLog.length">
+           {{ store.gameState.lastActionLog[0] }}
         </div>
         
 
@@ -160,76 +130,25 @@ function getOwner(tile: TileType | null) {
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent; /* Fallback */
-  margin-bottom: 1rem;
+  margin-bottom: 2rem;
   text-transform: uppercase;
   text-align: center;
   line-height: 1.2;
 }
 
-.event-log {
+.status-msg {
   position: absolute;
-  top: 15%;
-  bottom: 45%;
-  left: 5%;
-  right: 5%;
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 12px;
-  padding: 1rem;
-  overflow-y: auto;
-  backdrop-filter: blur(8px);
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
-}
-
-.event-log::-webkit-scrollbar {
-  width: 8px;
-}
-
-.event-log::-webkit-scrollbar-track {
-  background: rgba(255,255,255,0.05);
-  border-radius: 4px;
-}
-
-.event-log::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.5);
-  border-radius: 4px;
-}
-
-.event-log::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.7);
-}
-
-.event-item {
-  padding: 0.5rem 0.75rem;
-  margin-bottom: 0.5rem;
-  background: rgba(255,255,255,0.05);
-  border-left: 3px solid #6366f1;
-  border-radius: 6px;
-  color: #e2e8f0;
-  font-size: 0.85rem;
-  line-height: 1.4;
-  animation: slideIn 0.3s ease-out;
-}
-
-.event-placeholder {
-  color: #64748b;
-  font-style: italic;
-  text-align: center;
-  padding: 2rem;
+  top: 10%;
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
   font-size: 0.9rem;
+  max-width: 80%;
+  text-align: center;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.1);
 }
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateX(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
 
 .decks {
   display: flex;
@@ -265,81 +184,5 @@ function getOwner(tile: TileType | null) {
    color: white;
 }
 
-/* Mobile Responsive Styles */
-@media (max-width: 1024px) {
-  .board {
-    width: min(90vh, 98vw);
-    height: min(90vh, 98vw);
-    gap: 1px;
-  }
-  
-  .logo {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-  }
-  
-  .status-msg {
-    font-size: 0.8rem;
-    padding: 0.4rem 0.8rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .board-container {
-    padding: 5px;
-    height: auto;
-    min-height: 100vh;
-  }
-  
-  .board {
-    width: min(85vh, 100vw);
-    height: min(85vh, 100vw);
-    gap: 1px;
-    border-width: 2px;
-  }
-  
-  .logo {
-    font-size: 1.5rem;
-    letter-spacing: 1px;
-    margin-bottom: 0.5rem;
-  }
-  
-  .status-msg {
-    font-size: 0.7rem;
-    padding: 0.3rem 0.6rem;
-    max-width: 90%;
-    top: 5%;
-  }
-}
-
-@media (max-width: 480px) {
-  .board-container {
-    padding: 2px;
-  }
-  
-  .board {
-    width: 100vw;
-    height: 100vw;
-    gap: 0px;
-    border-width: 1px;
-    border-radius: 0;
-  }
-  
-  .logo {
-    font-size: 1.2rem;
-    margin-bottom: 0.3rem;
-  }
-  
-  .status-msg {
-    font-size: 0.65rem;
-    padding: 0.25rem 0.5rem;
-  }
-  
-  .deck {
-    width: 80px;
-    height: 50px;
-    font-size: 0.7rem;
-  }
-}
 
 </style>

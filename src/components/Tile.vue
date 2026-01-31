@@ -12,7 +12,12 @@ const colorClass = computed(() => {
   return `bg-${props.tile.group}`;
 });
 
-
+function getPricePrefix() {
+  if (props.tile.type === 'PROPERTY') return '$';
+  if (props.tile.type === 'AIRPORT') return '$';
+  if (props.tile.type === 'UTILITY') return '$';
+  return '';
+}
 
 function getIcon() {
     switch (props.tile.type) {
@@ -55,8 +60,7 @@ const ownerName = computed(() => {
     :style="ownerColor ? { borderColor: ownerColor, backgroundColor: ownerColor, borderWidth: '4px' } : {}"
   >
     <!-- Color Bar -->
-    <div v-if="tile.type === 'PROPERTY'" class="color-bar" :style="{ backgroundColor: 'transparent' }">
-        <div class="color-strip" :class="colorClass"></div>
+    <div v-if="tile.type === 'PROPERTY'" class="color-bar" :class="colorClass">
         <img 
            v-if="tile.country" 
            :src="`https://flagcdn.com/48x36/${tile.country}.png`" 
@@ -71,9 +75,9 @@ const ownerName = computed(() => {
       <div class="name" :class="{ small: tile.name.length > 10 }">{{ tile.name }}</div>
       
       <div v-if="tile.price && tile.type !== 'START' && tile.type !== 'TAX'" class="price">
-        {{ store.currencySymbol }}{{ store.formatCurrency(tile.price) }}
+        {{ getPricePrefix() }}{{ tile.price }}
       </div>
-      <div v-if="tile.amount" class="price">Pay {{ store.currencySymbol }}{{ store.formatCurrency(tile.amount) }}</div>
+      <div v-if="tile.amount" class="price">Pay ${{ tile.amount }}</div>
       
       <!-- Owner Indicator -->
       <div v-if="tile.owner" class="owner-pill" :style="{ backgroundColor: ownerColor || '#333' }">
@@ -125,24 +129,17 @@ const ownerName = computed(() => {
 .color-bar {
   height: 22px;
   width: 100%;
+  border-bottom: 1px solid #374151;
   position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-.color-strip {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 5px; /* Small Accent Line */
-    z-index: 1;
-}
-
 .flag-icon {
     height: 18px; /* Bigger Flag */
     border-radius: 2px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.5);
-    z-index: 2;
 }
 
 .content {
@@ -216,57 +213,7 @@ const ownerName = computed(() => {
 .bg-yellow { background-color: #eab308; }
 .bg-green { background-color: #16a34a; }
 .bg-blue { background-color: #2563eb; }
-.bg-dark-blue { background-color: #1e3a8a; }
 
 .bg-airport { background-color: #475569; }
 .bg-utility { background-color: #4b5563; }
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
-  .tile-card {
-    font-size: 0.65rem;
-  }
-  
-  .tile-name {
-    font-size: 0.6rem;
-  }
-  
-  .price {
-    font-size: 0.55rem;
-  }
-  
-  .player-token {
-    width: 18px;
-    height: 18px;
-    font-size: 0.6rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .tile-card {
-    font-size: 0.55rem;
-    min-height: 40px;
-  }
-  
-  .tile-name {
-    font-size: 0.5rem;
-  }
-  
-  .price {
-    font-size: 0.45rem;
-  }
-  
-  .player-token {
-    width: 14px;
-    height: 14px;
-    font-size: 0.5rem;
-  }
-  
-  .flag-icon {
-    width: 14px;
-    height: 14px;
-    font-size: 0.5rem;
-  }
-}
-
 </style>

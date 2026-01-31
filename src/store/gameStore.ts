@@ -10,8 +10,6 @@ import { broadcastState, sendAction } from '../multiplayer/peer';
 import { playSound } from '../logic/sound';
 import { createAvatar } from '@dicebear/core';
 import { lorelei } from '@dicebear/collection';
-import { db } from '../firebase';
-import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 
 // Helper to safely parse board data casting to Tile[]
 const initialBoard: Tile[] = JSON.parse(JSON.stringify(boardDataWorld));
@@ -21,7 +19,6 @@ export const useGameStore = defineStore('game', () => {
     const myId = ref<string | null>(null);
     const isHost = ref(false);
     const roomId = ref<string | null>(null);
-    const user = ref<any>(null); // Authed user info
 
     const gameState = ref<GameState>({
         status: 'LOBBY',
@@ -42,52 +39,12 @@ export const useGameStore = defineStore('game', () => {
         currentTrade: null
     });
 
-    const currencySymbol = computed(() => {
-        const map = gameState.value.settings.mapSelection;
-        return (map === 'india' || map === 'bangalore') ? '₹' : '$';
-    });
-
-    function formatCurrency(amount: number) {
-        const map = gameState.value.settings.mapSelection;
-        if (map === 'india' || map === 'bangalore') {
-            if (amount >= 10000000) return (amount / 10000000).toLocaleString('en-IN') + 'Cr';
-            if (amount >= 100000) return (amount / 100000).toLocaleString('en-IN') + 'L';
-            if (amount >= 1000) return (amount / 1000).toLocaleString('en-IN') + 'k';
-            return amount.toString();
-        }
-        return amount.toLocaleString();
-    }
-
-    const notifications = ref<{ id: number, message: string, type: 'info' | 'success' | 'error' }[]>([]);
-    let nextNotifyId = 0;
-
-    function notify(message: string, type: 'info' | 'success' | 'error' = 'info') {
-        const id = nextNotifyId++;
-        notifications.value.push({ id, message, type });
-        setTimeout(() => {
-            notifications.value = notifications.value.filter(n => n.id !== id);
-        }, 4000);
-    }
-
     // ... (Keep existing getters/actions) ...
 
     // --- HOST ONLY LOGIC ---
     function addPlayer(player: Player) {
-        console.log('🔧 addPlayer called. isHost:', isHost.value, 'Player:', player.name);
-        if (!isHost.value) {
-            console.warn('⚠️ addPlayer called but not host!');
-            return;
-        }
-        const existingIdx = gameState.value.players.findIndex(p => p.id === player.id);
-        if (existingIdx === -1) {
-            // Handle Duplicate Names
-            let originalName = player.name;
-            let suffix = 2;
-            while (gameState.value.players.some(p => p.name === player.name)) {
-                player.name = `${originalName} (${suffix})`;
-                suffix++;
-            }
-
+        if (!isHost.value) return;
+        if (!gameState.value.players.find(p => p.id === player.id)) {
             // Ensure Unique Color
             const usedColors = gameState.value.players.map(p => p.color);
             if (usedColors.includes(player.color)) {
@@ -110,17 +67,11 @@ export const useGameStore = defineStore('game', () => {
                     backgroundColor: ['b6e3f4', 'c0aede', 'd1d4f9', 'ffdfbf', 'ffd5dc'],
                     radius: 50
                 });
-                player.avatar = avatar.toString();
+                player.avatar = avatar.toDataUri();
             }
 
             gameState.value.players.push(player);
-            console.log('✨ Player added successfully:', player.name, 'Total players:', gameState.value.players.length);
             log(`Player ${player.name} joined`);
-            broadcast();
-        } else {
-            // Update existing player (re-join)
-            console.log('🔄 Player rejoined, updating record:', player.name);
-            gameState.value.players[existingIdx] = { ...gameState.value.players[existingIdx], ...player };
             broadcast();
         }
     }
@@ -136,23 +87,9 @@ export const useGameStore = defineStore('game', () => {
 
         gameState.value.board = JSON.parse(JSON.stringify(selectedBoard));
 
-        // Set Pass GO amount based on map
-        if (mapType === 'india' || mapType === 'bangalore') {
-            gameState.value.settings.passGoAmount = 200000;
-        } else {
-            gameState.value.settings.passGoAmount = 200;
-        }
-
-        // CRITICAL FIX: Set all players' cash to match starting cash setting
-        const startingCash = gameState.value.settings.startingCash || 1500;
-        gameState.value.players.forEach(player => {
-            player.cash = startingCash;
-        });
-
         gameState.value.status = 'PLAYING';
         gameState.value.turnIndex = 0;
-        log(`Game Started on ${mapType.toUpperCase()} Map with ${formatCurrency(startingCash)} starting cash`);
-
+        log(`Game Started on ${mapType.toUpperCase()} Map`);
         broadcast();
     }
 
@@ -166,71 +103,55 @@ export const useGameStore = defineStore('game', () => {
         const player = gameState.value.players[gameState.value.turnIndex];
         if (!player) return;
 
-        // JAIL LOGIC - Turn ends after ANY jail interaction
+        // JAIL LOGIC
         if (player.inJail) {
-            const isDouble = d1 === d2;
-
-            if (isDouble) {
-                // SCENARIO 1A: Double rolled - immediate release
+            // Case 1: Doubles -> Escape immediately
+            if (d1 === d2) {
                 log(`${player.name} rolled Doubles (${d1}-${d2})! Free from Jail!`);
                 player.inJail = false;
                 player.jailTurns = 0;
-                gameState.value.consecutiveDoubles = 0;
-
-                // Move and resolve landing
+                // Move immediately with this roll
                 const steps = d1 + d2;
-                const sentToJail = movePlayer(player, steps);
-
-                // Turn ENDS immediately (no extra roll for doubles in jail)
-                if (sentToJail) {
-                    // If landed on Go to Prison or drew jail card
-                    nextTurn();
-                    broadcast();
-                    return;
-                }
-                nextTurn();
+                movePlayer(player, steps);
+                // Turn ends after movement (no extra turn for doubles in jail)
+                gameState.value.dice = [0, 0];
+                gameState.value.consecutiveDoubles = 0;
                 broadcast();
                 return;
             } else {
-                // SCENARIO 1B: Not a double
+                // Case 2: Not doubles
                 player.jailTurns++;
                 log(`${player.name} failed double roll. Attempt ${player.jailTurns}/3.`);
 
-                // SCENARIO 2: Forced exit on 3rd failed attempt
+                // Forced Exit after 3rd fail
                 if (player.jailTurns >= 3) {
-                    const map = gameState.value.settings.mapSelection;
-                    const fine = (map === 'india' || map === 'bangalore') ? 50000 : 50;
+                    log(`${player.name} failed 3 times. Must pay $50.`);
+                    if (player.cash >= 50) {
+                        player.cash -= 50;
+                        gameState.value.vacationPot += 50;
+                        player.inJail = false;
+                        player.jailTurns = 0;
+                        playSound('fail');
 
-                    log(`${player.name} failed 3 times. Must pay $${fine}.`);
-                    player.cash -= fine;
-                    gameState.value.vacationPot += fine;
-                    player.inJail = false;
-                    player.jailTurns = 0;
-                    playSound('cash');
-
-                    log(`${player.name} paid fine and moves ${d1 + d2}.`);
-                    const sentToJail = movePlayer(player, d1 + d2);
-
-                    // Turn ENDS after forced exit
-                    if (sentToJail) {
-                        // If landed on Go to Prison
-                        nextTurn();
-                        broadcast();
-                        return;
+                        log(`${player.name} paid fine and moves ${d1 + d2}.`);
+                        movePlayer(player, d1 + d2);
+                    } else {
+                        // Debt Logic
+                        player.cash -= 50;
+                        gameState.value.vacationPot += 50;
+                        player.inJail = false;
+                        player.jailTurns = 0;
+                        log(`${player.name} incurs debt ($50) to leave Jail.`);
+                        movePlayer(player, d1 + d2);
                     }
-                    nextTurn();
-                    broadcast();
-                    return;
                 } else {
-                    // Stay in jail - NO MOVEMENT
-                    log(`${player.name} remains in jail.`);
-                    gameState.value.consecutiveDoubles = 0;
-
-                    // Turn ENDS automatically
+                    // Stay in jail, turn ends
                     nextTurn();
-                    broadcast();
                     return;
                 }
+                gameState.value.consecutiveDoubles = 0;
+                broadcast();
+                return;
             }
         }
 
@@ -250,30 +171,23 @@ export const useGameStore = defineStore('game', () => {
 
         const steps = d1 + d2;
         log(`${player.name} rolled ${steps} (${d1}+${d2})`);
-        const sentToJail = movePlayer(player, steps);
-
-        // If sent to jail by landing, turn ends immediately
-        if (sentToJail) {
-            nextTurn();
-        }
+        movePlayer(player, steps);
         broadcast();
     }
 
-    function movePlayer(player: Player, steps: number): boolean {
+    function movePlayer(player: Player, steps: number) {
         let newPos = player.position + steps;
         const boardLen = gameState.value.board.length;
 
         if (newPos >= boardLen) {
             newPos = newPos % boardLen;
-            const salary = gameState.value.settings.passGoAmount;
-            player.cash += salary;
-            log(`${player.name} passed GO! Collected $${salary}`);
+            player.cash += gameState.value.settings.passGoAmount;
+            log(`${player.name} passed GO! Collected $${gameState.value.settings.passGoAmount}`);
             playSound('cash');
         }
 
         player.position = newPos;
-        const shouldEndTurn = handleLanding(player);
-        return shouldEndTurn; // Returns true if landing sends to jail
+        handleLanding(player);
     }
 
     function payJailFine(playerId: string) {
@@ -281,37 +195,20 @@ export const useGameStore = defineStore('game', () => {
         const player = gameState.value.players.find(p => p.id === playerId);
         if (!player || !player.inJail) return;
 
-        const map = gameState.value.settings.mapSelection;
-        const fine = (map === 'india' || map === 'bangalore') ? 50000 : 50;
-
-        // SCENARIO 3: Pay fine
-        if (player.cash >= fine) {
-            player.cash -= fine;
-            gameState.value.vacationPot += fine;
+        if (player.cash >= 50) {
+            player.cash -= 50;
+            gameState.value.vacationPot += 50;
             player.inJail = false;
             player.jailTurns = 0;
-            log(`${player.name} paid $${fine} fine.`);
+            log(`${player.name} paid $50 fine.`);
             playSound('cash');
-
-            // Auto-roll dice and move
-            const d1 = Math.ceil(Math.random() * 6);
-            const d2 = Math.ceil(Math.random() * 6);
-            gameState.value.dice = [d1, d2];
-
-            log(`${player.name} rolled ${d1 + d2} (${d1}+${d2})`);
-            movePlayer(player, d1 + d2);
-
-            // Turn ENDS (even if sent back to jail!)
-            nextTurn();
-        } else {
-            log(`${player.name} cannot afford the fine!`);
         }
         broadcast();
     }
 
-    function handleLanding(player: Player): boolean {
+    function handleLanding(player: Player) {
         const tile = gameState.value.board[player.position];
-        if (!tile) return false;
+        if (!tile) return;
 
         // Log landing only if meaningful or distinct
         if (tile.type !== 'START') {
@@ -352,11 +249,12 @@ export const useGameStore = defineStore('game', () => {
         } else if ((tile.type as string) === 'JAIL_VISIT' || tile.name.includes('rison')) {
             // "Go to prison" specific logic
             // Check if it's the "Go to Prison" corner or just "Jail Visit"
+            // Usually Jail Visit is ID 10. Go to Prison is ID 30 or similar.
+            // Our board.json says ID 36 is "Go to prison". ID 12 is "In Prison".
+            // WAIT. If it is "Go to prison", we send to jail.
             if (tile.name.toLowerCase().includes('go to')) {
                 sendToJail(player);
                 playSound('fail');
-                // SCENARIO 0: Turn ENDS immediately when sent to jail
-                return true;
             } else {
                 log(`${player.name} is just visiting Jail.`);
             }
@@ -378,8 +276,6 @@ export const useGameStore = defineStore('game', () => {
         } else if (tile.type === 'START') {
             log(`${player.name} landed on Start.`);
         }
-
-        return false; // Normal landing, turn continues
     }
 
     function payRent(player: Player, tile: Tile) {
@@ -388,32 +284,11 @@ export const useGameStore = defineStore('game', () => {
         if (!owner || owner.bankrupt) return;
 
         let rentAmount = 0;
-        const map = gameState.value.settings.mapSelection;
-        const isIndian = (map === 'india' || map === 'bangalore');
-
         if (tile.type === 'PROPERTY') {
             const idx = tile.houseCount || 0;
             if (tile.rent) rentAmount = tile.rent[idx] ?? 10;
-        } else if (tile.type === 'AIRPORT') {
-            const ownerAirports = gameState.value.board.filter(t => t.type === 'AIRPORT' && t.owner === owner.id).length;
-            // Base rent from tile data or default
-            const baseRent = isIndian ? 100000 : 25;
-            // Rent = base × 2^(n-1) where n is number owned
-            rentAmount = baseRent * Math.pow(2, ownerAirports - 1);
-        } else if (tile.type === 'UTILITY') {
-            const ownerUtils = gameState.value.board.filter(t => t.type === 'UTILITY' && t.owner === owner.id).length;
-            const diceSum = gameState.value.dice[0] + gameState.value.dice[1];
-            // Standard Monopoly rules adjusted for 3 utilities:
-            // 1 utility = dice × 4
-            // 2 utilities = dice × 10  
-            // 3 utilities = dice × 20 (all utilities monopoly bonus)
-            let multiplier = 4;
-            if (ownerUtils === 2) multiplier = 10;
-            if (ownerUtils >= 3) multiplier = 20;
-            rentAmount = diceSum * multiplier;
-        } else if (tile.type === 'TAX') {
-            // Taxes are usually one-time landing fees handled in landOnTile
-            return;
+        } else {
+            rentAmount = 25; // Base for others
         }
 
         player.lastCreditor = owner.id;
@@ -459,8 +334,7 @@ export const useGameStore = defineStore('game', () => {
         if (!player || player.bankrupt) return;
         const tile = gameState.value.board[player.position];
 
-        // Allow buying any tile with a price that's not owned
-        if (tile && tile.price !== undefined && tile.price > 0 && !tile.owner && player.cash >= tile.price) {
+        if (tile && tile.price && !tile.owner && player.cash >= tile.price) {
             player.cash -= tile.price;
             tile.owner = player.id;
             log(`${player.name} bought ${tile.name} for $${tile.price}`);
@@ -503,77 +377,16 @@ export const useGameStore = defineStore('game', () => {
     }
 
     function updateState(newState: GameState) {
-        // CRITICAL: Preserve local identity fields to avoid being overwritten by host
-        const localMyId = myId.value;
-        const localRoomId = roomId.value;
-
-        gameState.value = {
-            ...newState,
-            myId: localMyId,
-            currentRoomId: localRoomId
-        };
-        console.log('🔄 State updated from host. My ID:', localMyId, 'Players:', newState.players.length);
+        gameState.value = newState;
     }
 
     function log(msg: string) {
-        // Find $ followed by numbers and format them
-        const formattedMsg = msg.replace(/\$(\d+)/g, (_, amount) => {
-            return currencySymbol.value + formatCurrency(parseInt(amount));
-        }).replace(/\$/g, currencySymbol.value);
-
-        gameState.value.lastActionLog.unshift(formattedMsg);
+        gameState.value.lastActionLog.unshift(msg);
         if (gameState.value.lastActionLog.length > 50) gameState.value.lastActionLog.pop();
     }
 
-    async function broadcast() {
+    function broadcast() {
         broadcastState(gameState.value);
-        if (isHost.value && roomId.value) {
-            try {
-                // Use UID as permanent storage key if available
-                const saveId = user.value?.uid || roomId.value;
-                await setDoc(doc(db, "games", saveId), {
-                    state: JSON.parse(JSON.stringify(gameState.value)),
-                    updatedAt: Date.now()
-                });
-
-                // Also update user's last room for "Rejoin" feature
-                if (user.value?.uid) {
-                    await setDoc(doc(db, "users", user.value.uid), {
-                        lastRoomId: roomId.value,
-                        lastAccessed: Date.now()
-                    }, { merge: true });
-                }
-            } catch (e) {
-                // Silently handle permission errors to avoid blocking local gameplay
-                console.warn("Cloud save paused: Firestore permissions might be restricted.", e);
-            }
-        }
-    }
-
-    async function loadGame(id: string) {
-        if (!isHost.value) return false;
-        try {
-            const snap = await getDoc(doc(db, "games", id));
-            if (snap.exists()) {
-                gameState.value = snap.data().state;
-                log("Game state restored from cloud");
-                broadcast();
-                return true;
-            }
-        } catch (e) {
-            console.warn("Load failed (permissions or network)", e);
-        }
-        return false;
-    }
-
-    async function deleteOldGame(id: string) {
-        try {
-            await deleteDoc(doc(db, "rooms", id));
-            return true;
-        } catch (e) {
-            console.warn("Failed to delete game record:", e);
-            return false;
-        }
     }
 
     function offerTrade(offer: TradeOffer) {
@@ -607,8 +420,7 @@ export const useGameStore = defineStore('game', () => {
                 if (t && t.owner === p2.id) t.owner = p1.id;
             });
 
-            log(`Trade completed between ${p1.name} and ${p2.name}!`);
-            notify(`🤝 Trade completed: ${p1.name} ↔️ ${p2.name}`, 'success');
+            log('Trade completed!');
             playSound('cash');
         }
         gameState.value.currentTrade = null;
@@ -645,21 +457,16 @@ export const useGameStore = defineStore('game', () => {
     }
 
     function processAction(action: GameAction) {
-        if (!action || !action.type) return;
-
         const current = gameState.value.players[gameState.value.turnIndex];
         const senderIsCurrent = current ? (current.id === action.from) : false;
 
-        switch (action.type) {
-            case 'START_GAME':
-                startGame();
-                return;
+        if (action.type === 'START_GAME') {
+            startGame();
+            return;
         }
 
         if (action.type === 'JOIN') {
-            console.log('👥 Processing JOIN action for:', action.payload.name, 'ID:', action.payload.id);
             addPlayer(action.payload);
-            console.log('✅ Current players in game:', gameState.value.players.map(p => p.name).join(', '));
             return;
         }
 
@@ -765,7 +572,6 @@ export const useGameStore = defineStore('game', () => {
         myId,
         isHost,
         roomId,
-        user,
         currentPlayer,
         me,
         isMyTurn,
@@ -781,13 +587,7 @@ export const useGameStore = defineStore('game', () => {
         setIdentity,
         setRoomId,
         updateState,
-        loadGame,
-        deleteOldGame,
         requestAction,
-        processAction,
-        notify,
-        notifications,
-        currencySymbol,
-        formatCurrency
+        processAction
     };
 });

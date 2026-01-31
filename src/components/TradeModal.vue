@@ -122,7 +122,7 @@ function sendOffer() {
             <div class="side" v-if="me">
                 <h3>{{ me.name }} (You)</h3>
                 <div class="cash-box">
-                    <label>Cash: {{ store.currencySymbol }}{{ store.formatCurrency(me.cash) }}</label>
+                    <label>Cash: ${{ me.cash }}</label>
                     <input type="number" v-model="myCashOffer" :max="me.cash" min="0" placeholder="Offer Cash">
                 </div>
                 <div class="prop-list">
