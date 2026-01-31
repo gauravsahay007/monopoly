@@ -198,6 +198,31 @@ export const useGameStore = defineStore('game', () => {
         }, 60 * 1000); // Check every minute
     }
 
+    function resetState() {
+        const localId = myId.value;
+        gameState.value = {
+            status: 'LOBBY',
+            turnIndex: 0,
+            players: [],
+            board: JSON.parse(JSON.stringify(boardDataWorld)),
+            dice: [0, 0],
+            lastActionLog: [],
+            settings: {
+                startingCash: 1500,
+                passGoAmount: 200,
+                mapSelection: 'world'
+            },
+            currentRoomId: null,
+            myId: localId,
+            consecutiveDoubles: 0,
+            vacationPot: 0,
+            currentTrade: null,
+            lastActivity: Date.now()
+        };
+        roomId.value = null;
+        isHost.value = false;
+    }
+
     function closeGame(reason: string = "Game closed by host.") {
         if (!isHost.value) return;
         notify(reason, "error");
@@ -208,8 +233,9 @@ export const useGameStore = defineStore('game', () => {
 
         setTimeout(() => {
             if (roomId.value) clearGameData(roomId.value);
-            // Optionally reset local state here or reload?
-        }, 2000);
+            resetState();
+            broadcast();
+        }, 2500);
     }
 
     function rollDice() {

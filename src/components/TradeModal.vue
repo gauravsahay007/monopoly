@@ -83,6 +83,17 @@ function selectTarget(id: string) {
     currentStep.value = 1;
 }
 
+// Currency Helpers
+function multiplyOffer(factor: number) {
+    if (isViewMode.value) return;
+    myCashOffer.value = (myCashOffer.value || 0) * factor;
+}
+
+function multiplyRequest(factor: number) {
+    if (isViewMode.value) return;
+    targetCashRequest.value = (targetCashRequest.value || 0) * factor;
+}
+
 // Validation
 const isValid = computed(() => {
     if (!selectedTarget.value) return false;
@@ -176,6 +187,11 @@ function cancelTrade() {
                 <div class="cash-box">
                     <label>Cash: {{ store.currencySymbol }}{{ store.formatCurrency(me.cash) }}</label>
                     <input type="number" v-model="myCashOffer" :max="me.cash" min="0" placeholder="Offer Cash" :disabled="isViewMode">
+                    <div class="helpers" v-if="!isViewMode">
+                        <button @click="multiplyOffer(1000)">K</button>
+                        <button @click="multiplyOffer(100000)">L</button>
+                        <button @click="multiplyOffer(10000000)">Cr</button>
+                    </div>
                 </div>
                 <div class="prop-list">
                     <div 
@@ -186,7 +202,7 @@ function cancelTrade() {
                        @click="toggleMyProp(prop.id)"
                     >
                         <div class="swatch" :class="prop.group"></div>
-                        <span>{{ prop.name }}</span>
+                        <span>{{ prop.name }} <small class="prop-val">({{ store.currencySymbol }}{{ store.formatCurrency(prop.price || 0) }})</small></span>
                     </div>
                 </div>
             </div>
@@ -197,6 +213,11 @@ function cancelTrade() {
                 
                 <div class="cash-box">
                    <input type="number" v-model="targetCashRequest" min="0" placeholder="Request Cash" :disabled="isViewMode">
+                   <div class="helpers" v-if="!isViewMode">
+                        <button @click="multiplyRequest(1000)">K</button>
+                        <button @click="multiplyRequest(100000)">L</button>
+                        <button @click="multiplyRequest(10000000)">Cr</button>
+                    </div>
                 </div>
                 <div class="prop-list">
                     <div 
@@ -207,7 +228,7 @@ function cancelTrade() {
                        @click="toggleTargetProp(prop.id)"
                     >
                         <div class="swatch" :class="prop.group"></div>
-                        <span>{{ prop.name }}</span>
+                        <span>{{ prop.name }} <small class="prop-val">({{ store.currencySymbol }}{{ store.formatCurrency(prop.price || 0) }})</small></span>
                     </div>
                 </div>
             </div>
@@ -378,6 +399,10 @@ function cancelTrade() {
     border-color: #7aa2f7;
     background: rgba(122, 162, 247, 0.1);
 }
+.prop-val {
+    color: #94a3b8;
+    margin-left: 5px;
+}
 .swatch {
     width: 12px; height: 12px;
     border-radius: 2px;
@@ -408,6 +433,25 @@ input {
     font-size: 1rem;
 }
 input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.helpers {
+    display: flex;
+    gap: 5px;
+    margin-top: 5px;
+}
+.helpers button {
+    background: #2e3040;
+    border: 1px solid #475569;
+    color: #cbd5e1;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.helpers button:hover {
+    background: #3b4261;
+    color: white;
+}
 
 .actions {
     display: flex;

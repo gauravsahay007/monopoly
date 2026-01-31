@@ -22,6 +22,10 @@ function roll() {
 }
 
 function endTurn() {
+  if ((store.me?.cash || 0) < 0) {
+      store.notify("You have negative cash! Sell assets or declare bankruptcy to continue.", "error");
+      return;
+  }
   store.requestAction({ type: 'END_TURN', payload: {}, from: store.myId! });
 }
 

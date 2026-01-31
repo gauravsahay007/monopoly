@@ -6,21 +6,16 @@ import { ref, computed } from 'vue';
 const store = useGameStore();
 const showCreateTrade = ref(false); // Renamed for clarity
 const showTradeDetails = ref(false);
-const confirmBankrupt = ref(false);
+// const confirmBankrupt = ref(false); // Removed in favor of stable toggle
+const showBankruptConfirm = ref(false);
 
 function getOwnedProperties(playerId: string) {
   return store.gameState.board.filter(t => t.owner === playerId);
 }
 
-function declareBankruptcy() {
-    if (!confirmBankrupt.value) {
-        confirmBankrupt.value = true;
-        store.notify("Tap again to CONFIRM bankruptcy!", "error");
-        setTimeout(() => confirmBankrupt.value = false, 3000);
-        return;
-    }
+function confirmBankruptcy() {
     store.requestAction({ type: 'BANKRUPTCY', payload: {}, from: store.myId! });
-    confirmBankrupt.value = false;
+    showBankruptConfirm.value = false;
 }
 
 function closeRoom() {
@@ -70,7 +65,9 @@ function getPlayer(id: string) {
                  <span v-if="p.isHost" class="crown">👑</span>
                  <span v-if="p.inJail" class="jail-icon">🔒</span>
              </div>
-             <div class="p-cash" v-if="!p.bankrupt">{{ store.currencySymbol }}{{ store.formatCurrency(p.cash) }}</div>
+             <div class="p-cash" v-if="!p.bankrupt" :class="{ 'debt': p.cash < 0 }">
+                 {{ store.currencySymbol }}{{ store.formatCurrency(p.cash) }}
+             </div>
              <div class="p-bankrupt" v-else>BANKRUPT</div>
            </div>
         </div>
@@ -79,9 +76,18 @@ function getPlayer(id: string) {
     <!-- Actions Row -->
     <div class="action-row" v-if="store.me">
         <button class="btn-vote" @click="votekick">👤× Kick</button>
-        <button v-if="!store.me.bankrupt" class="btn-bankrupt" @click="declareBankruptcy">
-           {{ confirmBankrupt ? '⚠️ CONFIRM!' : '🚩 Bankrupt' }}
-        </button>
+        
+        <!-- Bankruptcy Logic -->
+        <div v-if="!store.me.bankrupt" class="bankrupt-wrapper">
+            <button v-if="!showBankruptConfirm" class="btn-bankrupt" @click="showBankruptConfirm = true">
+               🚩 Bankrupt
+            </button>
+            <div v-else class="confirm-box">
+               <button class="btn-confirm-bankrupt" @click="confirmBankruptcy">⚠️ CONFIRM</button>
+               <button class="btn-cancel-bankrupt" @click="showBankruptConfirm = false">✖</button>
+            </div>
+        </div>
+
         <button v-if="store.isHost" class="btn-close-room" @click="closeRoom">🚫 End Game</button>
     </div>
 
@@ -240,6 +246,9 @@ function getPlayer(id: string) {
     color: #fff;
     font-weight: 700;
 }
+.p-cash.debt {
+    color: #ef4444;
+}
 
 .p-bankrupt {
     color: #ef4444;
@@ -254,6 +263,7 @@ function getPlayer(id: string) {
     display: flex;
     justify-content: space-between;
     gap: 10px;
+    height: 40px; /* Fixed height for row */
 }
 
 .btn-vote, .btn-bankrupt, .btn-close-room {
@@ -265,6 +275,7 @@ function getPlayer(id: string) {
     cursor: pointer;
     border: none;
     transition: opacity 0.2s;
+    height: 100%;
 }
 
 .btn-vote {
@@ -273,9 +284,43 @@ function getPlayer(id: string) {
     border: 1px solid rgba(122, 162, 247, 0.2);
 }
 
+.bankrupt-wrapper {
+    flex: 1;
+}
+
 .btn-bankrupt {
     background: linear-gradient(90deg, #ef4444, #dc2626);
     color: white;
+    width: 100%;
+}
+
+.confirm-box {
+    display: flex;
+    gap: 5px;
+    height: 100%;
+    width: 100%;
+}
+
+.btn-confirm-bankrupt {
+    flex: 1;
+    background: #ef4444;
+    color: white;
+    font-weight: bold;
+    border: 2px solid white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.7rem;
+    padding: 0 5px;
+}
+
+.btn-cancel-bankrupt {
+    width: 30px;
+    background: #2e3040;
+    color: white;
+    border: 1px solid #565f89;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
 }
 
 .btn-close-room {
