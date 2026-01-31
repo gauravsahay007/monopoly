@@ -12,7 +12,20 @@ export function initPeer(id: string | undefined, onOpen: (id: string) => void, o
         connections.clear();
     }
     console.log("Initializing Peer with ID:", id || "Auto-generated");
-    peer = id ? new Peer(id) : new Peer();
+
+    const config = {
+        secure: true,
+        config: {
+            iceServers: [
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' },
+            ]
+        }
+    };
+
+    peer = id ? new Peer(id, config) : new Peer(config);
 
     peer.on('open', (id) => {
         console.log('My Peer ID is: ' + id);
