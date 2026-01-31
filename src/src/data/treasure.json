@@ -1,0 +1,31 @@
+[
+    {
+        "id": "t1",
+        "text": "Bank error in your favor. Collect $200",
+        "action": "ADD_CASH",
+        "value": 200
+    },
+    {
+        "id": "t2",
+        "text": "Doctor's fees. Pay $50",
+        "action": "SUB_CASH",
+        "value": 50
+    },
+    {
+        "id": "t3",
+        "text": "Go to Jail",
+        "action": "GO_TO_JAIL"
+    },
+    {
+        "id": "t4",
+        "text": "Advance to Go",
+        "action": "MOVE_TO",
+        "targetId": 0
+    },
+    {
+        "id": "t5",
+        "text": "From sale of stock you get $50",
+        "action": "ADD_CASH",
+        "value": 50
+    }
+]

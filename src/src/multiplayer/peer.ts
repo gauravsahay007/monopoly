@@ -2,10 +2,10 @@ import Peer, { type DataConnection } from 'peerjs';
 import { useGameStore } from '../store/gameStore';
 
 let peer: Peer | null = null;
-let connections = new Map<string, DataConnection>(); // Host keeps track of clients: PeerID -> Connection
+let connections = new Map<string, DataConnection>(); // Host: Map of peerId -> connection
 let hostConnection: DataConnection | null = null; // Client connection to host
 
-export function initPeer(id: string | undefined, onOpen: (id: string) => void, onError?: (err: any) => void) {
+export function initPeer(id?: string, onOpen?: (id: string) => void, onError?: (err: any) => void) {
     if (peer) {
         peer.destroy();
         connections.forEach(c => c.close());
@@ -16,7 +16,7 @@ export function initPeer(id: string | undefined, onOpen: (id: string) => void, o
 
     peer.on('open', (id) => {
         console.log('My Peer ID is: ' + id);
-        onOpen(id);
+        if (onOpen) onOpen(id);
     });
 
     peer.on('connection', (conn) => {
@@ -34,15 +34,14 @@ function handleIncomingConnection(conn: DataConnection) {
 
     conn.on('open', () => {
         console.log('Connected to: ', conn.peer);
-
-        // Remove existing connection from same peer if it exists
+        // Replace existing connection if same peer reconnects
         if (connections.has(conn.peer)) {
             connections.get(conn.peer)?.close();
         }
         connections.set(conn.peer, conn);
 
-        // If I am host, send current state immediately
         if (store.isHost) {
+            // Send current state immediately as a plain object
             conn.send({
                 type: 'STATE_UPDATE',
                 payload: JSON.parse(JSON.stringify(store.gameState))
@@ -87,10 +86,8 @@ export function connectToHost(hostId: string, onConnected?: () => void) {
 }
 
 export function broadcastState(state: any) {
-    // Only Host calls this
-    // CRITICAL: Strip proxies
+    // Stringify once to strip Vue proxies and send a clean object
     const payload = JSON.parse(JSON.stringify(state));
-
     connections.forEach((conn) => {
         if (conn.open) {
             conn.send({ type: 'STATE_UPDATE', payload });
@@ -99,10 +96,11 @@ export function broadcastState(state: any) {
 }
 
 export function sendAction(action: any) {
-    // Only Client calls this
     if (hostConnection && hostConnection.open) {
-        // Strip proxies
-        hostConnection.send({ type: 'ACTION', payload: JSON.parse(JSON.stringify(action)) });
+        hostConnection.send({
+            type: 'ACTION',
+            payload: JSON.parse(JSON.stringify(action))
+        });
     } else {
         console.warn("Not connected to host");
     }
