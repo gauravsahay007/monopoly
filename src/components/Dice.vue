@@ -9,6 +9,7 @@ const dice2 = computed(() => store.gameState.dice[1]);
 const canRoll = computed(() => store.isMyTurn && dice1.value === 0);
 
 const isRolling = ref(false);
+const isIndian = computed(() => store.gameState.settings.mapSelection === 'india' || store.gameState.settings.mapSelection === 'bangalore');
 
 function roll() {
   isRolling.value = true;
@@ -26,12 +27,16 @@ function endTurn() {
 
 // Check Buy Capability
 const tileToBuy = computed(() => {
+   // Cannot buy while in jail
+   if (store.me?.inJail) return null;
    if (!store.isMyTurn || dice1.value === 0) return null;
    const tile = store.gameState.board[store.me?.position || 0];
    if (!tile) return null;
+   
    const purchasable = (tile.type === 'PROPERTY' || tile.type === 'AIRPORT' || tile.type === 'UTILITY') 
           && !tile.owner 
           && (store.me?.cash || 0) >= tile.price;
+   
    return purchasable ? tile : null;
 });
 
@@ -43,6 +48,8 @@ function buy() {
 function payFine() {
    store.requestAction({ type: 'PAY_JAIL_FINE', payload: {}, from: store.myId! });
 }
+
+const jailFine = computed(() => isIndian.value ? 50000 : 50);
 </script>
 
 <template>
@@ -73,13 +80,14 @@ function payFine() {
       <div v-if="store.me?.inJail" class="jail-actions">
           <h3>You are in Jail!</h3>
           <div class="jail-opt">
-              <button @click="payFine" class="btn-warning" :disabled="isRolling || (store.me?.cash || 0) < 50">
-                  Pay $50
+              <button @click="roll" class="btn-roll" :disabled="isRolling">
+                  🎲 Roll for Doubles
               </button>
-              <button v-if="store.me && store.me.jailTurns < 3" @click="roll" class="btn-roll" :disabled="isRolling">
-                  🎲 Roll Doubles
+              <button @click="payFine" class="btn-warning" :disabled="isRolling || (store.me?.cash || 0) < jailFine">
+                  Pay {{ store.currencySymbol }}{{ store.formatCurrency(jailFine) }}
               </button>
           </div>
+          <p class="jail-hint">Attempt {{ store.me.jailTurns }}/3 - Roll doubles to escape or pay fine</p>
       </div>
       
       <div v-else class="turn-controls">
@@ -89,7 +97,7 @@ function payFine() {
           
           <div v-if="!canRoll" class="post-roll-actions">
              <button v-if="tileToBuy" @click="buy" class="btn-buy">
-                 🛒 Buy for ${{ tileToBuy.price }}
+                 🛒 Buy for {{ store.currencySymbol }}{{ store.formatCurrency(tileToBuy.price) }}
              </button>
              <button @click="endTurn" class="btn-end">
                  End Turn
@@ -222,6 +230,71 @@ function payFine() {
 }
 
 .jail-opt { display: flex; gap: 10px; }
+.jail-hint { 
+    color: #94a3b8; 
+    font-size: 0.85rem; 
+    margin-top: 0.5rem; 
+    text-align: center; 
+}
 .btn-warning { background: #f59e0b; color: #fff; padding: 10px 20px; font-weight: bold; border-radius: 6px; }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .dice-container {
+    padding: 1rem;
+  }
+  
+  .dice-display {
+    gap: 0.8rem;
+  }
+  
+  .die {
+    width: 60px;
+    height: 60px;
+    font-size: 2rem;
+  }
+  
+  .turn-controls button,
+  .jail-actions button {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.85rem;
+  }
+  
+  .jail-hint {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dice-container {
+    padding: 0.8rem;
+  }
+  
+  .dice-display {
+    gap: 0.6rem;
+  }
+  
+  .die {
+    width: 50px;
+    height: 50px;
+    font-size: 1.8rem;
+  }
+  
+  .turn-controls button,
+  .jail-actions button {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+  }
+  
+  .jail-opt {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .jail-hint {
+    font-size: 0.7rem;
+  }
+}
+
 
 </style>

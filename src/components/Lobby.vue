@@ -2,9 +2,7 @@
 import { ref, onMounted, watch } from 'vue';
 import { useGameStore } from '../store/gameStore';
 import { initPeer, connectToHost, initializeHost } from '../multiplayer/peer';
-import { loginWithGoogle, auth, db } from '../firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import Loader from './Loader.vue';
+import { loginWithGoogle } from '../firebase';
 
 const store = useGameStore();
 
@@ -14,10 +12,10 @@ const initialized = ref(false);
 const peerId = ref('');
 const showRules = ref(false);
 const selectedColor = ref('#ef4444');
-const authLoading = ref(true);
-const joining = ref(false);
-const rejoinRoomId = ref<string | null>(null);
-const editingName = ref(false);
+const authLoading = ref(true); // Track if we are waiting for firebase auth state
+const recentRoomId = ref<string | null>(null); // Last room from Firestore
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 const colors = [
     '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#64748b'
@@ -37,172 +35,97 @@ const rules = ref({
 
 watch(() => rules.value.mapSelection, (newMap) => {
     if (newMap === 'india' || newMap === 'bangalore') {
-        rules.value.startingCash = 15000000;
+        rules.value.startingCash = 15000000; // ₹1.5Cr default
     } else {
         rules.value.startingCash = 1500;
     }
 });
 
-onMounted(() => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const rId = urlParams.get('room');
-  if (rId) roomIdInput.value = rId;
+watch(() => store.user, async (u) => {
+    if (u) {
+        console.log("Lobby: User auth settled:", u.displayName || u.email);
+        name.value = u.displayName || u.email?.split('@')[0] || 'Player';
+        authLoading.value = false;
+        console.log("Lobby: authLoading set to false in watcher");
 
-  const savedGuestId = sessionStorage.getItem('guest_uid');
-  const savedRoom = sessionStorage.getItem('last_room_id');
+        // Fetch Recent Room meta (Non-blocking)
+        getDoc(doc(db, "users", u.uid)).then(userDoc => {
+            if (userDoc.exists()) {
+                recentRoomId.value = userDoc.data().lastRoomId;
+                console.log("Lobby: Found recent room:", recentRoomId.value);
+            }
+        }).catch(e => {
+            console.warn("Lobby: Failed to fetch user meta (swallowed)", e);
+        });
 
-  auth.onAuthStateChanged(async (user) => {
-      if (user) {
-          store.user = user;
-          name.value = user.displayName || 'Player';
-          
-          try {
-              const userDoc = await getDoc(doc(db, "users", user.uid));
-              if (userDoc.exists()) {
-                  const lastRoom = userDoc.data().lastRoomId;
-                  if (lastRoom) checkRejoin(lastRoom);
-              }
-          } catch (e) {
-              // silent fail
-          }
+        // Init Peer with UID
+        if (!initialized.value) {
+            console.log('🔌 Attempting to initialize peer with UID:', u.uid);
+            initPeer(u.uid, (id) => {
+                peerId.value = id;
+                initialized.value = true;
+                console.log('✅ Peer initialized successfully with ID:', id);
+            }, (err) => {
+                console.warn("⚠️ Lobby: Peer UID init failed, fallback to random", err);
+                initPeer(undefined, (rid) => {
+                    peerId.value = rid;
+                    initialized.value = true;
+                    console.log('✅ Peer initialized with random ID:', rid);
+                });
+            });
+        }
+    } else {
+        recentRoomId.value = null;
+    }
+}, { immediate: true });
 
-          initPeer(user.uid, (id) => {
-             peerId.value = id;
-             initialized.value = true;
-          }, (_err) => {
-             // Fallback
-             initPeer(undefined, (id) => {
-                 peerId.value = id;
-                 initialized.value = true;
-             });
-          });
-      } else {
-          store.user = null;
-          // Guest Logic
-          const idToUse = savedGuestId || undefined;
-          
-          initPeer(idToUse, (id) => {
-             peerId.value = id;
-             if (!savedGuestId) sessionStorage.setItem('guest_uid', id);
-             initialized.value = true;
-             
-             if (savedRoom) checkRejoin(savedRoom);
-          });
-      }
-      authLoading.value = false;
-  });
+// Auto-save the current room for rejoin feature (Host and Client)
+
+watch(() => store.roomId, async (newRoom) => {
+    if (newRoom && store.user) {
+        try {
+            await setDoc(doc(db, "users", store.user.uid), {
+                lastRoomId: newRoom,
+                lastAccessed: Date.now()
+            }, { merge: true });
+            console.log("Recorded last room:", newRoom);
+        } catch (e) {
+            console.warn("Failed to save room to user profile", e);
+        }
+    }
 });
 
-async function checkRejoin(rid: string) {
-    if (!rid) return;
-    try {
-        const d = await getDoc(doc(db, "games", rid));
-        if (d.exists()) {
-             rejoinRoomId.value = rid;
-        }
-    } catch(e) {}
-}
+onMounted(() => {
+  // Check for room in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const rId = urlParams.get('room');
+  if (rId) {
+      roomIdInput.value = rId;
+  }
+  
+  // Safety timeout for auth. 
+  setTimeout(() => {
+    // Force auth loading to end regardless of Peer state
+    console.log("Lobby: Safety timeout fired, clearing authLoading");
+    authLoading.value = false;
+    
+    if (!store.user && !initialized.value) {
+        initPeer(undefined, (id) => {
+            peerId.value = id;
+            initialized.value = true;
+        });
+    }
+  }, 2000);
+});
 
 async function handleGoogleLogin() {
     try {
-        await loginWithGoogle();
+        const u = await loginWithGoogle();
+        store.user = u;
+        name.value = u.displayName || '';
     } catch (e) {
         store.notify("Login failed", "error");
     }
-}
-
-async function createGame() {
-  if (!name.value) return store.notify("Enter name", "error");
-  
-  const actualId = peerId.value;
-  initializeHost(actualId);
-
-  store.setIdentity(actualId, true); 
-  store.setRoomId(actualId);
-  
-  sessionStorage.setItem('last_room_id', actualId);
-  
-  if (store.user) {
-      setDoc(doc(db, "users", store.user.uid), {
-          lastRoomId: actualId,
-          lastAccessed: Date.now()
-      }, { merge: true });
-  }
-  
-  store.gameState.settings = { ...store.gameState.settings, ...rules.value };
-  
-  // Host joins immediately
-  store.addPlayer({
-    id: actualId,
-    name: name.value,
-    cash: rules.value.startingCash,
-    position: 0,
-    color: selectedColor.value, 
-    inJail: false,
-    jailTurns: 0,
-    isHost: true,
-    avatar: store.user?.photoURL || '😎'
-  });
-}
-
-function joinGame(rid?: string) {
-  const targetRoom = rid || roomIdInput.value;
-  if (!name.value || !targetRoom) return store.notify("Enter name and room ID", "error");
-  
-  joining.value = true;
-  store.setIdentity(peerId.value, false); 
-  store.setRoomId(targetRoom);
-  
-  sessionStorage.setItem('last_room_id', targetRoom);
-
-  connectToHost(
-    targetRoom, 
-    () => {
-        joining.value = false;
-        store.notify("Connected! Joining game...", "success");
-        sendJoinAction();
-    },
-    (err: string) => {
-        joining.value = false;
-        store.notify(err, "error");
-        store.setRoomId(""); 
-        store.gameState.status = 'LOBBY'; 
-    }
-  );
-}
-
-function sendJoinAction() {
-    store.requestAction({
-        type: 'JOIN',
-        payload: {
-            id: peerId.value,
-            name: name.value,
-            cash: 1500, // Will be overridden by host rules
-            position: 0, // Overridden if rejoining
-            color: selectedColor.value,
-            inJail: false,
-            jailTurns: 0,
-            isHost: false,
-            avatar: store.user?.photoURL || '🙂'
-        },
-        from: peerId.value
-    });
-}
-
-function updateName() {
-    if (!name.value.trim()) return;
-    editingName.value = false;
-    // Resend JOIN to update name
-    if (store.roomId) sendJoinAction();
-    store.notify("Name updated!", "success");
-}
-
-function startGame() {
-  store.requestAction({
-    type: 'START_GAME',
-    payload: {},
-    from: peerId.value
-  });
 }
 
 function copyRoomCode() {
@@ -215,6 +138,104 @@ function copyRoomLink() {
     navigator.clipboard.writeText(link);
     store.notify("Room link copied!", "success");
 }
+
+async function createGame(resume = false) {
+  if (!name.value) return store.notify("Please enter your name", "error");
+  
+  // CRITICAL FIX: Use the ACTUAL peer ID as the room ID
+  // This ensures guests connect to the peer we're actually listening on
+  const actualPeerId = peerId.value;
+  const storageKey = store.user?.uid || actualPeerId;
+
+  console.log('🎮 Creating game with Peer ID:', actualPeerId, 'Storage Key:', storageKey);
+
+  if (!resume) {
+      // Delete previous game session if starting fresh
+      await store.deleteOldGame(storageKey);
+  }
+  
+  initializeHost(actualPeerId);
+  store.setIdentity(actualPeerId, true); // My network ID
+  store.setRoomId(actualPeerId); // FIXED: Use actual peer ID, not UID
+  
+  let loaded = false;
+  if (resume) {
+      loaded = await store.loadGame(storageKey);
+  }
+  
+  if (loaded) {
+      store.notify("Existing game progress restored!", "success");
+  } else {
+      store.gameState.settings = { ...store.gameState.settings, ...rules.value };
+      store.addPlayer({
+        id: actualPeerId,
+        name: name.value,
+        cash: rules.value.startingCash,
+        position: 0,
+        color: selectedColor.value, 
+        inJail: false,
+        jailTurns: 0,
+        isHost: true,
+        avatar: '😎'
+      });
+      if (!resume) store.notify("New game created!", "success");
+  }
+  
+  console.log('✅ Game created. Room ID:', store.roomId, 'Players:', store.gameState.players.length);
+}
+
+function joinGame() {
+  if (!name.value || !roomIdInput.value) return store.notify("Enter name and room ID", "error");
+  store.setIdentity(peerId.value, false); // Client
+  store.setRoomId(roomIdInput.value);
+  
+  connectToHost(roomIdInput.value, () => {
+      store.requestAction({
+        type: 'JOIN',
+        payload: {
+          id: peerId.value,
+          name: name.value,
+          cash: 1500, 
+          position: 0,
+          color: selectedColor.value,
+          inJail: false,
+          jailTurns: 0,
+          isHost: false,
+          avatar: '🙂'
+        },
+        from: peerId.value
+      });
+  });
+}
+
+function startGame() {
+  console.log("Start Game clicked, PeerID:", peerId.value);
+  store.requestAction({
+    type: 'START_GAME',
+    payload: {},
+    from: peerId.value
+  });
+}
+
+// Play Online Button (Matches Random Queue Idea - but currently just creates game)
+function playOnline() {
+    store.notify("Matchmaking coming soon!", "info");
+}
+
+async function rejoinRecent() {
+    if (!recentRoomId.value) return;
+    
+    // Check if I was the host (UID matches room ID in our convention)
+    const wasHost = (store.user?.uid === recentRoomId.value);
+    
+    if (wasHost) {
+        roomIdInput.value = recentRoomId.value;
+        await createGame(true); // Call with resume = true
+    } else {
+        roomIdInput.value = recentRoomId.value;
+        joinGame();
+    }
+}
 </script>
 
 <template>
@@ -222,16 +243,11 @@ function copyRoomLink() {
     <h1 class="title">Monopoly</h1>
     
     <div v-if="!initialized || authLoading" class="loading">
-        <Loader :text="authLoading ? 'Verifying Session...' : 'Initializing Connection...'" />
+       <span v-if="authLoading">Verifying Session...</span>
+       <span v-else>Initializing Connection...</span>
     </div>
     
     <div v-else-if="!store.roomId" class="form">
-      <!-- Rejoin Button -->
-      <div v-if="rejoinRoomId" class="rejoin-panel">
-         <p>You were in a game!</p>
-         <button class="btn-rejoin" @click="joinGame(rejoinRoomId)">Rejoin Room</button>
-      </div>
-
       <button v-if="!store.user" class="btn-google" @click="handleGoogleLogin">
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" />
           Sign in with Google
@@ -241,12 +257,7 @@ function copyRoomLink() {
          Hello, <strong>{{ store.user.displayName || 'Friend' }}</strong>!
       </div>
 
-      <div class="input-group">
-        <label>Your Name</label>
-        <input v-model="name" placeholder="Enter your name" />
-      </div>
-
-      <div class="input-group">
+      <div class="input-group" v-if="store.user">
         <label>Your Color</label>
         <div class="color-picker">
             <div 
@@ -260,7 +271,19 @@ function copyRoomLink() {
         </div>
       </div>
       
-      <div class="divider-text">OR</div>
+      <button v-if="store.user" class="btn-play-big" @click="playOnline">
+          ▶ PLAY ONLINE
+      </button>
+
+      <!-- REJOIN SECTION -->
+      <div v-if="recentRoomId" class="rejoin-panel">
+          <p>Previous game detected!</p>
+          <button @click="rejoinRecent" class="btn-rejoin">
+              🔄 REJOIN: {{ recentRoomId.substring(0, 8) }}...
+          </button>
+      </div>
+      
+      <div class="divider-text" v-if="store.user">OR</div>
       
       <div class="rules-toggle" @click="showRules = !showRules">
          <span>⚙️ Custom Game Rules</span>
@@ -272,59 +295,73 @@ function copyRoomLink() {
               <span>x2 rent on full-set</span>
               <input type="checkbox" v-model="rules.doubleRentOnSet">
           </div>
-           <div class="rule-item">
-              <span>Map Type</span>
-              <select v-model="rules.mapSelection">
-                  <option value="world">World</option>
-                  <option value="india">India</option>
-                  <option value="bangalore">Bangalore</option>
+          <div class="rule-item">
+              <span>Vacation cash</span>
+              <input type="checkbox" v-model="rules.vacationCash">
+          </div>
+          <div class="rule-item">
+              <span>Auction</span>
+              <input type="checkbox" v-model="rules.auction">
+          </div>
+          <div class="rule-item">
+              <span>No rent in prison</span>
+              <input type="checkbox" v-model="rules.prisonNoRent">
+          </div>
+          <div class="rule-item">
+              <span>Starting Cash</span>
+              <select v-model="rules.startingCash">
+                  <template v-if="rules.mapSelection === 'india' || rules.mapSelection === 'bangalore'">
+                    <option :value="10000000">₹1Cr</option>
+                    <option :value="15000000">₹1.5Cr</option>
+                    <option :value="20000000">₹2Cr</option>
+                    <option :value="30000000">₹3Cr</option>
+                  </template>
+                  <template v-else>
+                    <option :value="1500">$1500</option>
+                    <option :value="2000">$2000</option>
+                    <option :value="2500">$2500</option>
+                  </template>
               </select>
           </div>
       </div>
       
-      <div class="actions">
-        <button @click="createGame" class="btn-primary">Create Private Game</button>
+      <div class="input-group" v-if="store.user">
+        <label>Map Selection</label>
+        <select v-model="rules.mapSelection">
+          <option value="world">World Map 🌍</option>
+          <option value="india">India Map 🇮🇳</option>
+          <option value="bangalore">Bangalore Map 🚌</option>
+        </select>
+      </div>
+      
+      <div class="actions" v-if="store.user">
+        <button @click="createGame()" class="btn-primary">Create Private Game</button>
         <div class="join-area">
           <input v-model="roomIdInput" placeholder="Room Code" />
-          <button @click="joinGame()" class="btn-secondary" :disabled="joining">
-              {{ joining ? 'Joining...' : 'Join' }}
-          </button>
+          <button @click="joinGame" class="btn-secondary">Join</button>
         </div>
       </div>
     </div>
     
     <div v-else class="waiting-room">
-      <div class="room-header">
-          <h2>Room: <span class="code">{{ store.roomId }}</span></h2>
+      <div class="room-info">
+          <h2>Room Code: <span class="code">{{ store.roomId }}</span></h2>
           <div class="share-actions">
-               <button class="btn-icon" @click="copyRoomCode" title="Copy Code">📋</button>
-               <button class="btn-icon" @click="copyRoomLink" title="Copy Link">🔗</button>
+              <button class="btn-icon" title="Copy Code" @click="copyRoomCode">📋</button>
+              <button class="btn-icon" title="Copy Link" @click="copyRoomLink">🔗</button>
           </div>
       </div>
-      <p class="share-hint">Share this code with your friends!</p>
+      <p>Share the code or link with your friends!</p>
       
       <div class="player-list">
         <div v-for="p in store.gameState.players" :key="p.id" class="player-item">
           <div class="swatch-small" :style="{ backgroundColor: p.color }"></div>
-          
-          <!-- Name Display / Edit -->
-          <div class="p-name-container">
-              <template v-if="p.id === peerId && editingName">
-                  <input v-model="name" class="mini-input" @keyup.enter="updateName" />
-                  <button class="btn-icon-small" @click="updateName">💾</button>
-              </template>
-              <template v-else>
-                  <span class="p-name">{{ p.name }}</span>
-                  <button v-if="p.id === peerId" class="btn-icon-small" @click="editingName = true">✏️</button>
-              </template>
-          </div>
-          
+          <span class="p-name">{{ p.name }}</span>
           <span v-if="p.isHost" class="badge">HOST</span>
         </div>
       </div>
       
       <div v-if="store.isHost" class="host-actions">
-        <!-- Validation: Need >1 player? Or debugging allows 1 -->
         <button @click="startGame" class="btn-start" :disabled="store.gameState.players.length < 1">START GAME</button>
       </div>
       <div v-else>
@@ -367,14 +404,6 @@ input, select {
   margin-top: 0.5rem;
 }
 
-.mini-input {
-    padding: 2px 5px;
-    width: 100px;
-    font-size: 0.8rem;
-    height: auto;
-    margin: 0;
-}
-
 .color-picker {
     display: flex;
     gap: 8px;
@@ -397,22 +426,31 @@ input, select {
     box-shadow: 0 0 5px white;
 }
 
-.btn-google {
-    background: white;
-    color: #444;
-    border: 1px solid #ddd;
-    width: 100%;
-    padding: 10px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    font-weight: bold;
-    cursor: pointer;
-    margin-bottom: 20px;
+.user-welcome {
+    margin: 1rem 0;
+    font-size: 1.1rem;
+    color: #e2e8f0;
 }
-.btn-google img { width: 18px; }
+.user-welcome strong { color: var(--primary); }
+
+.btn-play-big {
+    background: linear-gradient(135deg, #ec4899, #8b5cf6);
+    color: white;
+    font-size: 1.2rem;
+    font-weight: bold;
+    width: 100%;
+    padding: 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 10px rgba(236, 72, 153, 0.4);
+    transition: transform 0.2s;
+}
+
+.btn-play-big:hover {
+    transform: translateY(-2px);
+}
 
 .divider-text {
     color: #94a3b8;
@@ -449,10 +487,49 @@ input, select {
     font-size: 0.85rem;
 }
 
+.rule-item input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
 .actions {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  font-weight: bold;
+  padding: 0.9rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5);
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  font-weight: bold;
+  padding: 0.9rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
 }
 
 .join-area {
@@ -465,8 +542,6 @@ input, select {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  max-height: 300px;
-  overflow-y: auto;
 }
 
 .player-item {
@@ -476,15 +551,6 @@ input, select {
   background: rgba(255,255,255,0.05);
   padding: 0.5rem;
   border-radius: 8px;
-}
-
-.p-name-container {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    justify-content: flex-start;
-    text-align: left;
 }
 
 .swatch-small {
@@ -501,79 +567,103 @@ input, select {
   margin-left: auto;
 }
 
-.btn-primary { background: #374151; color: white; width: 100%; border: 1px solid #4b5563; }
-.btn-secondary { background: var(--accent); color: white; }
-.btn-start { background: var(--success); color: white; width: 100%; font-size: 1.2rem; padding: 1rem; }
-.btn-secondary:disabled { opacity: 0.7; cursor: not-allowed; }
-
-.room-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: rgba(0,0,0,0.3);
+.btn-google {
+    background: white;
+    color: #444;
+    border: 1px solid #ddd;
+    width: 100%;
     padding: 10px;
     border-radius: 8px;
-    margin-bottom: 10px;
-}
-
-.room-header h2 {
-    font-size: 1rem;
     display: flex;
     align-items: center;
-    gap: 5px;
-    margin: 0;
-    max-width: 70%;
+    justify-content: center;
+    gap: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-bottom: 20px;
 }
+.btn-google img { width: 18px; }
 
-.code {
-    font-family: monospace;
-    background: rgba(255,255,255,0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
-    color: #7aa2f7;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 150px;
-    display: inline-block;
-    vertical-align: middle;
+.room-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
 }
-
+.share-actions {
+    display: flex;
+    gap: 10px;
+}
 .btn-icon {
     background: rgba(255,255,255,0.1);
-    border: none;
+    border: 1px solid rgba(255,255,255,0.2);
     color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
     cursor: pointer;
-    padding: 5px;
-    border-radius: 4px;
+    font-size: 1.1rem;
 }
-
-.btn-icon-small {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 0.8rem;
-    padding: 2px;
-}
-
-.share-hint { font-size: 0.8rem; color: #94a3b8; margin-bottom: 1rem; }
+.btn-icon:hover { background: rgba(255,255,255,0.2); }
 
 .rejoin-panel {
     background: rgba(16, 185, 129, 0.1);
-    border: 1px solid #10b981;
-    padding: 10px;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 1rem;
     border-radius: 8px;
-    margin-bottom: 15px;
+    margin-bottom: 1rem;
 }
-.rejoin-panel p { margin: 0 0 5px 0; font-size: 0.9rem; color: #34d399; }
+.rejoin-panel p {
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
+    color: #10b981;
+}
 .btn-rejoin {
     background: #10b981;
     color: white;
     border: none;
-    padding: 5px 10px;
-    border-radius: 4px;
+    padding: 0.8rem;
+    border-radius: 6px;
     font-weight: bold;
-    width: 100%;
     cursor: pointer;
+    width: 100%;
+}
+
+.btn-primary { background: #374151; color: white; width: 100%; border: 1px solid #4b5563; }
+.btn-secondary { background: var(--accent); color: white; }
+
+.btn-start {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    width: 100%;
+    font-size: 1.2rem;
+    padding: 1rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    transition: all 0.2s;
+}
+.btn-start:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5);
+}
+.btn-start:disabled {
+    background: #475569;
+    color: #94a3b8;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+.code {
+    font-family: 'Courier New', monospace;
+    background: rgba(0,0,0,0.4);
+    padding: 2px 8px;
+    border-radius: 6px;
+    color: #a5b4fc;
+    word-break: break-all;
+    user-select: all;
 }
 </style>

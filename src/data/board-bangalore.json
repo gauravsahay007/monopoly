@@ -10,17 +10,18 @@
     {
         "id": 1,
         "type": "PROPERTY",
-        "name": "Majestic Bus Stand",
-        "price": 60,
+        "name": "Majestic",
+        "price": 5000,
         "rent": [
-            2,
-            10,
-            30,
-            90,
-            160,
-            250
+            500,
+            2000,
+            6000,
+            18000,
+            30000,
+            45000
         ],
-        "group": "brown"
+        "group": "brown",
+        "country": "in"
     },
     {
         "id": 2,
@@ -34,16 +35,17 @@
         "id": 3,
         "type": "PROPERTY",
         "name": "KR Market",
-        "price": 60,
+        "price": 15000,
         "rent": [
-            4,
-            20,
-            60,
-            180,
-            320,
-            450
+            1000,
+            4000,
+            12000,
+            36000,
+            60000,
+            90000
         ],
-        "group": "brown"
+        "group": "brown",
+        "country": "in"
     },
     {
         "id": 4,
@@ -52,38 +54,71 @@
         "price": 0,
         "rent": [],
         "group": "special",
-        "amount": 200
+        "amount": 200000
     },
     {
         "id": 5,
-        "type": "AIRPORT",
-        "name": "KBS (Majestic)",
-        "price": 200,
+        "type": "PROPERTY",
+        "name": "Gandhi Bazaar",
+        "price": 30000,
         "rent": [
-            25,
-            50,
-            100,
-            200
+            2000,
+            10000,
+            30000,
+            90000,
+            150000,
+            250000
+        ],
+        "group": "light-blue",
+        "country": "in"
+    },
+    {
+        "id": 6,
+        "type": "AIRPORT",
+        "name": "KBS Bus Stand",
+        "price": 1000000,
+        "rent": [
+            100000,
+            200000,
+            400000,
+            800000
         ],
         "group": "airport"
     },
     {
-        "id": 6,
+        "id": 7,
         "type": "PROPERTY",
-        "name": "Gandhi Bazaar",
-        "price": 100,
+        "name": "Basavanagudi",
+        "price": 30000,
         "rent": [
-            6,
-            30,
-            90,
-            270,
-            400,
-            550
+            2000,
+            10000,
+            30000,
+            90000,
+            150000,
+            250000
         ],
-        "group": "light-blue"
+        "group": "light-blue",
+        "country": "in"
     },
     {
-        "id": 7,
+        "id": 8,
+        "type": "PROPERTY",
+        "name": "Jayanagar",
+        "price": 60000,
+        "rent": [
+            4000,
+            20000,
+            60000,
+            180000,
+            300000,
+            450000
+        ],
+        "group": "light-blue",
+        "country": "in"
+    },
+    {
+        "id": 9,
         "type": "SURPRISE",
         "name": "Chance",
         "price": 0,
@@ -91,166 +126,150 @@
         "group": "special"
     },
     {
-        "id": 8,
-        "type": "PROPERTY",
-        "name": "Basavanagudi",
-        "price": 100,
-        "rent": [
-            6,
-            30,
-            90,
-            270,
-            400,
-            550
-        ],
-        "group": "light-blue"
-    },
-    {
-        "id": 9,
-        "type": "PROPERTY",
-        "name": "Jayanagar 4th Block",
-        "price": 120,
-        "rent": [
-            8,
-            40,
-            100,
-            300,
-            450,
-            600
-        ],
-        "group": "light-blue"
-    },
-    {
         "id": 10,
-        "type": "JAIL_VISIT",
-        "name": "Central Jail",
-        "price": 0,
-        "rent": [],
-        "group": "special"
+        "type": "PROPERTY",
+        "name": "Rajajinagar",
+        "price": 100000,
+        "rent": [
+            8000,
+            40000,
+            120000,
+            360000,
+            600000,
+            900000
+        ],
+        "group": "pink",
+        "country": "in"
     },
     {
         "id": 11,
         "type": "PROPERTY",
-        "name": "Rajajinagar",
-        "price": 140,
+        "name": "Malleshwaram",
+        "price": 100000,
         "rent": [
-            10,
-            50,
-            150,
-            450,
-            625,
-            750
+            8000,
+            40000,
+            120000,
+            360000,
+            600000,
+            900000
         ],
-        "group": "pink"
+        "group": "pink",
+        "country": "in"
     },
     {
         "id": 12,
-        "type": "UTILITY",
-        "name": "BESCOM",
-        "price": 150,
-        "rent": [],
-        "group": "utility"
-    },
-    {
-        "id": 13,
-        "type": "PROPERTY",
-        "name": "Malleshwaram",
-        "price": 140,
-        "rent": [
-            10,
-            50,
-            150,
-            450,
-            625,
-            750
-        ],
-        "group": "pink"
-    },
-    {
-        "id": 14,
-        "type": "PROPERTY",
-        "name": "Sadashivnagar",
-        "price": 160,
-        "rent": [
-            12,
-            60,
-            180,
-            500,
-            700,
-            900
-        ],
-        "group": "pink"
-    },
-    {
-        "id": 15,
-        "type": "AIRPORT",
-        "name": "Shantinagar Bus Stand",
-        "price": 200,
-        "rent": [
-            25,
-            50,
-            100,
-            200
-        ],
-        "group": "airport"
-    },
-    {
-        "id": 16,
-        "type": "PROPERTY",
-        "name": "BTM Layout",
-        "price": 180,
-        "rent": [
-            14,
-            70,
-            200,
-            550,
-            750,
-            950
-        ],
-        "group": "orange"
-    },
-    {
-        "id": 17,
-        "type": "TREASURE",
-        "name": "Community Chest",
+        "type": "PRISON",
+        "name": "Just Visiting",
         "price": 0,
         "rent": [],
         "group": "special"
     },
     {
-        "id": 18,
+        "id": 13,
         "type": "PROPERTY",
-        "name": "HSR Layout",
-        "price": 180,
+        "name": "Sadashivnagar",
+        "price": 200000,
         "rent": [
-            14,
-            70,
-            200,
-            550,
-            750,
-            950
+            15000,
+            75000,
+            225000,
+            675000,
+            1000000,
+            1500000
         ],
-        "group": "orange"
+        "group": "pink",
+        "country": "in"
+    },
+    {
+        "id": 14,
+        "type": "PROPERTY",
+        "name": "Yeshwantpur",
+        "price": 300000,
+        "rent": [
+            20000,
+            100000,
+            300000,
+            900000,
+            1500000,
+            2200000
+        ],
+        "group": "orange",
+        "country": "in"
+    },
+    {
+        "id": 15,
+        "type": "UTILITY",
+        "name": "BESCOM",
+        "price": 500000,
+        "rent": [],
+        "group": "utility"
+    },
+    {
+        "id": 16,
+        "type": "PROPERTY",
+        "name": "Hebbal",
+        "price": 300000,
+        "rent": [
+            20000,
+            100000,
+            300000,
+            900000,
+            1500000,
+            2200000
+        ],
+        "group": "orange",
+        "country": "in"
+    },
+    {
+        "id": 17,
+        "type": "PROPERTY",
+        "name": "RT Nagar",
+        "price": 500000,
+        "rent": [
+            35000,
+            175000,
+            525000,
+            1500000,
+            2200000,
+            3000000
+        ],
+        "group": "orange",
+        "country": "in"
+    },
+    {
+        "id": 18,
+        "type": "AIRPORT",
+        "name": "Yelahanka Bus Stand",
+        "price": 1000000,
+        "rent": [
+            100000,
+            200000,
+            400000,
+            800000
+        ],
+        "group": "airport"
     },
     {
         "id": 19,
         "type": "PROPERTY",
-        "name": "JP Nagar",
-        "price": 200,
+        "name": "Hennur",
+        "price": 800000,
         "rent": [
-            16,
-            80,
-            220,
-            600,
-            800,
-            1000
+            60000,
+            300000,
+            900000,
+            2700000,
+            4000000,
+            5500000
         ],
-        "group": "orange"
+        "group": "red",
+        "country": "in"
     },
     {
         "id": 20,
-        "type": "VACATION",
-        "name": "Lalbagh Parking",
+        "type": "TREASURE",
+        "name": "Community Chest",
         "price": 0,
         "rent": [],
         "group": "special"
@@ -258,20 +277,69 @@
     {
         "id": 21,
         "type": "PROPERTY",
-        "name": "Marathahalli",
-        "price": 220,
+        "name": "Kalyan Nagar",
+        "price": 800000,
         "rent": [
-            18,
-            90,
-            250,
-            700,
-            875,
-            1050
+            60000,
+            300000,
+            900000,
+            2700000,
+            4000000,
+            5500000
         ],
-        "group": "red"
+        "group": "red",
+        "country": "in"
     },
     {
         "id": 22,
+        "type": "UTILITY",
+        "name": "GAIL",
+        "price": 500000,
+        "rent": [],
+        "group": "utility"
+    },
+    {
+        "id": 23,
+        "type": "PROPERTY",
+        "name": "Banaswadi",
+        "price": 1200000,
+        "rent": [
+            90000,
+            450000,
+            1350000,
+            4000000,
+            5500000,
+            7000000
+        ],
+        "group": "red",
+        "country": "in"
+    },
+    {
+        "id": 24,
+        "type": "VACATION",
+        "name": "Lalbagh Parking",
+        "price": 0,
+        "rent": [],
+        "group": "special"
+    },
+    {
+        "id": 25,
+        "type": "PROPERTY",
+        "name": "Marathahalli",
+        "price": 2000000,
+        "rent": [
+            150000,
+            750000,
+            2200000,
+            6500000,
+            9000000,
+            12000000
+        ],
+        "group": "yellow",
+        "country": "in"
+    },
+    {
+        "id": 26,
         "type": "SURPRISE",
         "name": "Chance",
         "price": 0,
@@ -279,141 +347,23 @@
         "group": "special"
     },
     {
-        "id": 23,
-        "type": "PROPERTY",
-        "name": "Whitefield",
-        "price": 220,
-        "rent": [
-            18,
-            90,
-            250,
-            700,
-            875,
-            1050
-        ],
-        "group": "red"
-    },
-    {
-        "id": 24,
-        "type": "PROPERTY",
-        "name": "Electronic City",
-        "price": 240,
-        "rent": [
-            20,
-            100,
-            300,
-            750,
-            925,
-            1100
-        ],
-        "group": "red"
-    },
-    {
-        "id": 25,
-        "type": "AIRPORT",
-        "name": "Shivajinagar Bus Stand",
-        "price": 200,
-        "rent": [
-            25,
-            50,
-            100,
-            200
-        ],
-        "group": "airport"
-    },
-    {
-        "id": 26,
-        "type": "PROPERTY",
-        "name": "Domlur",
-        "price": 260,
-        "rent": [
-            22,
-            110,
-            330,
-            800,
-            975,
-            1150
-        ],
-        "group": "yellow"
-    },
-    {
         "id": 27,
         "type": "PROPERTY",
-        "name": "Ulsoor",
-        "price": 260,
+        "name": "Whitefield",
+        "price": 2000000,
         "rent": [
-            22,
-            110,
-            330,
-            800,
-            975,
-            1150
+            150000,
+            750000,
+            2200000,
+            6500000,
+            9000000,
+            12000000
         ],
-        "group": "yellow"
+        "group": "yellow",
+        "country": "in"
     },
     {
         "id": 28,
-        "type": "UTILITY",
-        "name": "BWSSB",
-        "price": 150,
-        "rent": [],
-        "group": "utility"
-    },
-    {
-        "id": 29,
-        "type": "PROPERTY",
-        "name": "Indiranagar",
-        "price": 280,
-        "rent": [
-            24,
-            120,
-            360,
-            850,
-            1025,
-            1200
-        ],
-        "group": "yellow"
-    },
-    {
-        "id": 30,
-        "type": "JAIL_VISIT",
-        "name": "Go to Central Jail",
-        "price": 0,
-        "rent": [],
-        "group": "special"
-    },
-    {
-        "id": 31,
-        "type": "PROPERTY",
-        "name": "MG Road",
-        "price": 300,
-        "rent": [
-            26,
-            130,
-            390,
-            900,
-            1100,
-            1275
-        ],
-        "group": "green"
-    },
-    {
-        "id": 32,
-        "type": "PROPERTY",
-        "name": "Brigade Road",
-        "price": 300,
-        "rent": [
-            26,
-            130,
-            390,
-            900,
-            1100,
-            1275
-        ],
-        "group": "green"
-    },
-    {
-        "id": 33,
         "type": "TREASURE",
         "name": "Community Chest",
         "price": 0,
@@ -421,37 +371,110 @@
         "group": "special"
     },
     {
-        "id": 34,
+        "id": 29,
         "type": "PROPERTY",
-        "name": "Koramangala",
-        "price": 320,
+        "name": "Electronic City",
+        "price": 3500000,
         "rent": [
-            28,
-            150,
-            450,
-            1000,
-            1200,
-            1400
+            250000,
+            1200000,
+            3500000,
+            10000000,
+            14000000,
+            18000000
         ],
-        "group": "green"
+        "group": "yellow",
+        "country": "in"
     },
     {
-        "id": 35,
+        "id": 30,
         "type": "AIRPORT",
-        "name": "Banashankari TTMC",
-        "price": 200,
+        "name": "ITPL Bus Stand",
+        "price": 1000000,
         "rent": [
-            25,
-            50,
-            100,
-            200
+            100000,
+            200000,
+            400000,
+            800000
         ],
         "group": "airport"
     },
     {
+        "id": 31,
+        "type": "PROPERTY",
+        "name": "Domlur",
+        "price": 5000000,
+        "rent": [
+            400000,
+            2000000,
+            6000000,
+            18000000,
+            25000000,
+            32000000
+        ],
+        "group": "green",
+        "country": "in"
+    },
+    {
+        "id": 32,
+        "type": "PROPERTY",
+        "name": "Ulsoor",
+        "price": 5000000,
+        "rent": [
+            400000,
+            2000000,
+            6000000,
+            18000000,
+            25000000,
+            32000000
+        ],
+        "group": "green",
+        "country": "in"
+    },
+    {
+        "id": 33,
+        "type": "UTILITY",
+        "name": "BWSSB",
+        "price": 500000,
+        "rent": [],
+        "group": "utility"
+    },
+    {
+        "id": 34,
+        "type": "PROPERTY",
+        "name": "Indiranagar",
+        "price": 7500000,
+        "rent": [
+            600000,
+            3000000,
+            9000000,
+            25000000,
+            35000000,
+            45000000
+        ],
+        "group": "green",
+        "country": "in"
+    },
+    {
+        "id": 35,
+        "type": "PROPERTY",
+        "name": "HAL",
+        "price": 7500000,
+        "rent": [
+            600000,
+            3000000,
+            9000000,
+            25000000,
+            35000000,
+            45000000
+        ],
+        "group": "green",
+        "country": "in"
+    },
+    {
         "id": 36,
-        "type": "SURPRISE",
-        "name": "Chance",
+        "type": "JAIL_VISIT",
+        "name": "Go to Central Jail",
         "price": 0,
         "rent": [],
         "group": "special"
@@ -459,40 +482,144 @@
     {
         "id": 37,
         "type": "PROPERTY",
-        "name": "Lavelle Road",
-        "price": 350,
+        "name": "MG Road",
+        "price": 10000000,
         "rent": [
-            35,
-            175,
-            500,
-            1100,
-            1300,
-            1500
+            800000,
+            4000000,
+            12000000,
+            35000000,
+            50000000,
+            60000000
         ],
-        "group": "blue"
+        "group": "blue",
+        "country": "in"
     },
     {
         "id": 38,
+        "type": "PROPERTY",
+        "name": "Brigade Road",
+        "price": 15000000,
+        "rent": [
+            1200000,
+            6000000,
+            18000000,
+            50000000,
+            70000000,
+            90000000
+        ],
+        "group": "blue",
+        "country": "in"
+    },
+    {
+        "id": 39,
+        "type": "TREASURE",
+        "name": "Community Chest",
+        "price": 0,
+        "rent": [],
+        "group": "special"
+    },
+    {
+        "id": 40,
+        "type": "PROPERTY",
+        "name": "Commercial Street",
+        "price": 15000000,
+        "rent": [
+            1200000,
+            6000000,
+            18000000,
+            50000000,
+            70000000,
+            90000000
+        ],
+        "group": "blue",
+        "country": "in"
+    },
+    {
+        "id": 41,
+        "type": "PROPERTY",
+        "name": "Frazer Town",
+        "price": 15000000,
+        "rent": [
+            1200000,
+            6000000,
+            18000000,
+            50000000,
+            70000000,
+            90000000
+        ],
+        "group": "blue",
+        "country": "in"
+    },
+    {
+        "id": 42,
+        "type": "AIRPORT",
+        "name": "Banashankari TTMC",
+        "price": 1000000,
+        "rent": [
+            100000,
+            200000,
+            400000,
+            800000
+        ],
+        "group": "airport"
+    },
+    {
+        "id": 43,
         "type": "TAX",
         "name": "Luxury Tax",
         "price": 0,
         "rent": [],
         "group": "special",
-        "amount": 100
+        "amount": 500000
     },
     {
-        "id": 39,
+        "id": 44,
+        "type": "SURPRISE",
+        "name": "Chance",
+        "price": 0,
+        "rent": [],
+        "group": "special"
+    },
+    {
+        "id": 45,
+        "type": "PROPERTY",
+        "name": "Koramangala",
+        "price": 20000000,
+        "rent": [
+            1500000,
+            7500000,
+            25000000,
+            60000000,
+            80000000,
+            100000000
+        ],
+        "group": "blue",
+        "country": "in"
+    },
+    {
+        "id": 46,
+        "type": "TAX",
+        "name": "Luxury Tax",
+        "price": 0,
+        "rent": [],
+        "group": "special",
+        "amount": 500000
+    },
+    {
+        "id": 47,
         "type": "PROPERTY",
         "name": "UB City",
-        "price": 400,
+        "price": 25000000,
         "rent": [
-            50,
-            200,
-            600,
-            1400,
-            1700,
-            2000
+            2000000,
+            10000000,
+            30000000,
+            80000000,
+            110000000,
+            150000000
         ],
-        "group": "blue"
+        "group": "blue",
+        "country": "in"
     }
 ]

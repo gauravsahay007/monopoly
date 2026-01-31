@@ -118,13 +118,7 @@ export function sendAction(action: any) {
 export async function clearGameData(roomId: string) {
     console.log("Clearing game data for:", roomId);
     try {
-        // Delete main doc
         await deleteDoc(doc(db, "games", roomId));
-
-        // Note: Subcollections are NOT automatically deleted in Client SDK.
-        // We can try to delete actions if we want to be thorough, 
-        // but since the main doc is gone, listeners will mist likely error/stop matching.
-        // For a hackathon/demo, deleting the main doc is sufficient to "close" the room.
 
         const actionsRef = collection(db, "games", roomId, "actions");
         const snapshot = await getDocs(actionsRef);

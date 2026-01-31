@@ -1,36 +1,31 @@
 <script setup lang="ts">
 import { useGameStore } from '../store/gameStore';
 import TradeModal from './TradeModal.vue';
-import AvatarDisplay from './AvatarDisplay.vue';
-import { clearGameData } from '../multiplayer/peer';
 import { ref, computed } from 'vue';
 
 const store = useGameStore();
 const showTrade = ref(false);
 const showTradeDetails = ref(false);
+const confirmBankrupt = ref(false);
 
 function getOwnedProperties(playerId: string) {
   return store.gameState.board.filter(t => t.owner === playerId);
 }
 
 function declareBankruptcy() {
-    if (confirm("Are you sure? You will lose everything and leave the game.")) {
-        store.requestAction({ type: 'BANKRUPTCY', payload: {}, from: store.myId! });
+    if (!confirmBankrupt.value) {
+        confirmBankrupt.value = true;
+        store.notify("Tap again to CONFIRM bankruptcy!", "error");
+        setTimeout(() => confirmBankrupt.value = false, 3000);
+        return;
     }
-}
-
-async function endGame() {
-    if (confirm("Are you sure you want to END the game for everyone? This will delete the room.")) {
-        if (store.roomId) {
-            await clearGameData(store.roomId);
-            window.location.href = "/"; // Go back to lobby
-        }
-    }
+    store.requestAction({ type: 'BANKRUPTCY', payload: {}, from: store.myId! });
+    confirmBankrupt.value = false;
 }
 
 // Placeholder for Votekick
 function votekick() {
-    alert("Votekick functionality coming soon!");
+    store.notify("Votekick functionality coming soon!", "info");
 }
 
 const myProps = computed(() => {
@@ -59,7 +54,9 @@ function getPlayer(id: string) {
           :class="{ active: store.currentPlayer?.id === p.id }"
         >
           <div class="p-avatar" :style="{ backgroundColor: p.color }">
-             <AvatarDisplay :avatar="p.avatar" size="28px" />
+             <img v-if="p.avatar?.startsWith('data:')" :src="p.avatar" class="avatar-img" />
+             <div v-else-if="p.avatar?.includes('<svg')" v-html="p.avatar" class="avatar-svg"></div>
+             <span v-else class="emoji">{{ p.avatar || '👤' }}</span>
           </div>
           <div class="p-info">
              <div class="p-name">
@@ -67,20 +64,17 @@ function getPlayer(id: string) {
                  <span v-if="p.isHost" class="crown">👑</span>
                  <span v-if="p.inJail" class="jail-icon">🔒</span>
              </div>
-             <div class="p-cash" v-if="!p.bankrupt">${{ p.cash }}</div>
+             <div class="p-cash" v-if="!p.bankrupt">{{ store.currencySymbol }}{{ store.formatCurrency(p.cash) }}</div>
              <div class="p-bankrupt" v-else>BANKRUPT</div>
-          </div>
+           </div>
         </div>
     </div>
     
     <!-- Actions Row -->
     <div class="action-row" v-if="store.me">
-        <button class="btn-vote" @click="votekick">👤× Kick</button>
+        <button class="btn-vote" @click="votekick">👤× Votekick</button>
         <button v-if="!store.me.bankrupt" class="btn-bankrupt" @click="declareBankruptcy">
-           🚩 Bankrupt
-        </button>
-        <button v-if="store.isHost" class="btn-end" @click="endGame">
-           🛑 End
+           {{ confirmBankrupt ? '⚠️ CONFIRM!' : '🚩 Bankrupt' }}
         </button>
     </div>
 
@@ -88,7 +82,7 @@ function getPlayer(id: string) {
     <div class="trades-section">
         <div class="section-header">
             <span>Trades</span>
-            <button class="btn-create" @click="showTrade = true" :disabled="!store.isMyTurn || !!store.gameState.currentTrade">
+            <button class="btn-create" @click="showTrade = true" :disabled="store.me?.inJail || !store.isMyTurn || !!store.gameState.currentTrade">
                ➕ Create
             </button>
         </div>
@@ -100,11 +94,15 @@ function getPlayer(id: string) {
         <div v-else class="active-trade-card clickable" @click="showTradeDetails = true">
             <div class="trade-row">
                  <div class="t-avatar" :style="{ backgroundColor: getPlayer(store.gameState.currentTrade.initiator)?.color }">
-                     <AvatarDisplay :avatar="getPlayer(store.gameState.currentTrade.initiator)?.avatar" size="24px" />
+                     <img v-if="getPlayer(store.gameState.currentTrade.initiator)?.avatar?.startsWith('data:')" :src="getPlayer(store.gameState.currentTrade.initiator)?.avatar" class="avatar-img" />
+                     <div v-else-if="getPlayer(store.gameState.currentTrade.initiator)?.avatar?.includes('<svg')" v-html="getPlayer(store.gameState.currentTrade.initiator)?.avatar" class="avatar-svg"></div>
+                     <span v-else>{{ getPlayer(store.gameState.currentTrade.initiator)?.avatar || '👤' }}</span>
                  </div>
                  <div class="exchange-icon">⇄</div>
                  <div class="t-avatar" :style="{ backgroundColor: getPlayer(store.gameState.currentTrade.target)?.color }">
-                     <AvatarDisplay :avatar="getPlayer(store.gameState.currentTrade.target)?.avatar" size="24px" />
+                     <img v-if="getPlayer(store.gameState.currentTrade.target)?.avatar?.startsWith('data:')" :src="getPlayer(store.gameState.currentTrade.target)?.avatar" class="avatar-img" />
+                     <div v-else-if="getPlayer(store.gameState.currentTrade.target)?.avatar?.includes('<svg')" v-html="getPlayer(store.gameState.currentTrade.target)?.avatar" class="avatar-svg"></div>
+                     <span v-else>{{ getPlayer(store.gameState.currentTrade.target)?.avatar || '👤' }}</span>
                  </div>
             </div>
             
@@ -155,7 +153,7 @@ function getPlayer(id: string) {
             <div class="trade-split">
                 <div class="side">
                     <h4>{{ getPlayer(store.gameState.currentTrade.initiator)?.name }} Gives:</h4>
-                    <div class="cash" v-if="store.gameState.currentTrade.offerCash > 0">💵 ${{ store.gameState.currentTrade.offerCash }}</div>
+                    <div class="cash" v-if="store.gameState.currentTrade.offerCash > 0">💵 {{ store.currencySymbol }}{{ store.formatCurrency(store.gameState.currentTrade.offerCash) }}</div>
                     <div v-for="pid in store.gameState.currentTrade.offerProperties" :key="pid">
                          🏠 {{ store.gameState.board.find(t => t.id === pid)?.name }}
                     </div>
@@ -163,7 +161,7 @@ function getPlayer(id: string) {
                 <div class="divider">⇄</div>
                 <div class="side">
                     <h4>{{ getPlayer(store.gameState.currentTrade.target)?.name }} Gives:</h4>
-                    <div class="cash" v-if="store.gameState.currentTrade.requestCash > 0">💵 ${{ store.gameState.currentTrade.requestCash }}</div>
+                    <div class="cash" v-if="store.gameState.currentTrade.requestCash > 0">💵 {{ store.currencySymbol }}{{ store.formatCurrency(store.gameState.currentTrade.requestCash) }}</div>
                     <div v-for="pid in store.gameState.currentTrade.requestProperties" :key="pid">
                          🏠 {{ store.gameState.board.find(t => t.id === pid)?.name }}
                     </div>
@@ -272,7 +270,7 @@ function getPlayer(id: string) {
     gap: 10px;
 }
 
-.btn-vote, .btn-bankrupt, .btn-end {
+.btn-vote, .btn-bankrupt {
     flex: 1;
     padding: 8px;
     border-radius: 6px;
@@ -291,12 +289,6 @@ function getPlayer(id: string) {
 
 .btn-bankrupt {
     background: linear-gradient(90deg, #ef4444, #dc2626);
-    color: white;
-}
-
-.btn-end {
-    background: #7f1d1d; /* Dark Red */
-    border: 1px solid #ef4444;
     color: white;
 }
 
@@ -560,4 +552,84 @@ function getPlayer(id: string) {
     color: #565f89;
     font-style: italic;
 }
+
+.avatar-img, .avatar-svg {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    overflow: hidden;
+}
+.avatar-svg :deep(svg) {
+    width: 100%;
+    height: 100%;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .panel {
+    width: 100%;
+    max-height: 40vh;
+    position: relative;
+    border-left: none;
+    border-top: 2px solid #334155;
+    overflow-y: auto;
+  }
+  
+  .section-title {
+    font-size: 0.9rem;
+  }
+  
+  .player-row {
+    padding: 0.6rem;
+  }
+  
+  .p-avatar {
+    width: 35px;
+    height: 35px;
+  }
+  
+  .p-name {
+    font-size: 0.85rem;
+  }
+  
+  .p-cash {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .panel {
+    max-height: 35vh;
+    font-size: 0.8rem;
+  }
+  
+  .section-title {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.6rem;
+  }
+  
+  .player-row {
+    padding: 0.5rem;
+  }
+  
+  .p-avatar {
+    width: 30px;
+    height: 30px;
+  }
+  
+  .p-name {
+    font-size: 0.75rem;
+  }
+  
+  .p-cash {
+    font-size: 0.7rem;
+  }
+  
+  .action-row button {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.75rem;
+  }
+}
+
 </style>
