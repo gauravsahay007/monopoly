@@ -64,7 +64,10 @@ function getOwner(tile: TileType | null) {
   <div class="board-container">
     <div class="board">
       <div class="center-area">
-        <h1 class="logo">Monopoly!</h1>
+        <div class="logo-wrapper">
+            <img src="../assets/logo.svg" alt="logo" class="logo-icon" />
+            <h1 class="logo-text">Monopoly!</h1>
+        </div>
         
         <Dice />
 
@@ -146,7 +149,21 @@ function getOwner(tile: TileType | null) {
   gap: 1rem; /* Added gap for spacing */
 }
 
-.logo {
+.logo-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 0.5rem;
+}
+
+.logo-icon {
+  height: 2.5rem;
+  width: auto;
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+}
+
+.logo-text {
   font-family: 'Arial Black', sans-serif;
   font-size: 3rem;
   letter-spacing: 2px;
@@ -154,11 +171,9 @@ function getOwner(tile: TileType | null) {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  color: transparent; /* Fallback */
-  margin-bottom: 0.5rem; /* Reduced margin */
+  color: transparent;
+  margin: 0;
   text-transform: uppercase;
-  text-align: center;
-  line-height: 1.2;
 }
 
 .event-log {

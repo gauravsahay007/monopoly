@@ -27,6 +27,7 @@ export interface Player {
     avatar: string; // emoji or url
     bankrupt?: boolean;
     lastCreditor?: string | null; // Player ID who they owe
+    uid?: string; // Google User ID for persistence
 }
 
 export interface GameState {
@@ -43,6 +44,7 @@ export interface GameState {
     consecutiveDoubles: number;
     vacationPot: number;
     currentTrade?: TradeOffer | null;
+    lastActivity?: number; // Timestamp for inactivity timeout
 }
 
 export interface TradeOffer {

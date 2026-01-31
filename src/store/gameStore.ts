@@ -6,7 +6,7 @@ import boardDataIndia from '../data/board-india.json';
 import boardDataBangalore from '../data/board-bangalore.json';
 import treasureData from '../data/treasure.json';
 import surpriseData from '../data/surprise.json';
-import { broadcastState, sendAction } from '../multiplayer/peer';
+import { broadcastState, sendAction, clearGameData } from '../multiplayer/peer';
 import { playSound } from '../logic/sound';
 import { createAvatar } from '@dicebear/core';
 import { lorelei } from '@dicebear/collection';
@@ -39,7 +39,8 @@ export const useGameStore = defineStore('game', () => {
         myId: null,
         consecutiveDoubles: 0,
         vacationPot: 0,
-        currentTrade: null
+        currentTrade: null,
+        lastActivity: Date.now()
     });
 
     const currencySymbol = computed(() => {
@@ -50,8 +51,9 @@ export const useGameStore = defineStore('game', () => {
     function formatCurrency(amount: number) {
         const map = gameState.value.settings.mapSelection;
         if (map === 'india' || map === 'bangalore') {
-            if (amount >= 10000000) return (amount / 10000000).toLocaleString('en-IN') + 'Cr';
-            if (amount >= 100000) return (amount / 100000).toLocaleString('en-IN') + 'L';
+            // Show more decimal places for large numbers to reflect small changes
+            if (amount >= 10000000) return (amount / 10000000).toLocaleString('en-IN', { maximumFractionDigits: 4 }) + 'Cr';
+            if (amount >= 100000) return (amount / 100000).toLocaleString('en-IN', { maximumFractionDigits: 2 }) + 'L';
             if (amount >= 1000) return (amount / 1000).toLocaleString('en-IN') + 'k';
             return amount.toString();
         }
@@ -72,13 +74,23 @@ export const useGameStore = defineStore('game', () => {
 
     // --- HOST ONLY LOGIC ---
     function addPlayer(player: Player) {
-        console.log('🔧 addPlayer called. isHost:', isHost.value, 'Player:', player.name);
+        console.log('🔧 addPlayer called. isHost:', isHost.value, 'Player:', player.name, 'UID:', player.uid);
         if (!isHost.value) {
             console.warn('⚠️ addPlayer called but not host!');
             return;
         }
-        const existingIdx = gameState.value.players.findIndex(p => p.id === player.id);
+
+        // Duplicate Check Priority: 1. UID (Persistent), 2. Peer ID (Session)
+        let existingIdx = -1;
+        if (player.uid) {
+            existingIdx = gameState.value.players.findIndex(p => p.uid === player.uid);
+        }
         if (existingIdx === -1) {
+            existingIdx = gameState.value.players.findIndex(p => p.id === player.id);
+        }
+
+        if (existingIdx === -1) {
+            // NEW PLAYER
             // Handle Duplicate Names
             let originalName = player.name;
             let suffix = 2;
@@ -97,7 +109,6 @@ export const useGameStore = defineStore('game', () => {
                     const randomColor = available[Math.floor(Math.random() * available.length)];
                     if (randomColor) player.color = randomColor;
                 } else {
-                    // Fallback random
                     player.color = `#${Math.floor(Math.random() * 16777215).toString(16)}`;
                 }
             }
@@ -120,11 +131,14 @@ export const useGameStore = defineStore('game', () => {
             log(`Player ${player.name} joined`);
             broadcast();
         } else {
-            // Update existing player (re-join)
+            // REJOINING PLAYER
             const existing = gameState.value.players[existingIdx];
             if (existing) {
-                console.log('🔄 Player rejoined. Preserving state for:', player.name);
-                // CRITICAL: specific merge to avoid overwriting game progress with lobby defaults
+                console.log('🔄 Player rejoined (Persistent). Updating PeerID for:', player.name);
+                // CRITICAL: Update the Peer ID so the player receives updates on new session
+                existing.id = player.id;
+
+                // Update identity but Preserve game state
                 gameState.value.players[existingIdx] = {
                     ...existing,
                     name: player.name,
@@ -135,6 +149,8 @@ export const useGameStore = defineStore('game', () => {
             }
         }
     }
+
+    let inactivityTimer: any = null;
 
     function startGame() {
         if (!isHost.value) return;
@@ -162,9 +178,38 @@ export const useGameStore = defineStore('game', () => {
 
         gameState.value.status = 'PLAYING';
         gameState.value.turnIndex = 0;
+        gameState.value.lastActivity = Date.now();
         log(`Game Started on ${mapType.toUpperCase()} Map with ${formatCurrency(startingCash)} starting cash`);
 
         broadcast();
+        startInactivityCheck();
+    }
+
+    function startInactivityCheck() {
+        if (inactivityTimer) clearInterval(inactivityTimer);
+        inactivityTimer = setInterval(() => {
+            if (!isHost.value) return;
+            const now = Date.now();
+            const last = gameState.value.lastActivity || now;
+            // 5 Minutes Timeout
+            if (now - last > 5 * 60 * 1000) {
+                closeGame("Game closed due to 5 minutes of inactivity.");
+            }
+        }, 60 * 1000); // Check every minute
+    }
+
+    function closeGame(reason: string = "Game closed by host.") {
+        if (!isHost.value) return;
+        notify(reason, "error");
+        log("🔴 " + reason);
+
+        gameState.value.status = 'GAME_OVER';
+        broadcast();
+
+        setTimeout(() => {
+            if (roomId.value) clearGameData(roomId.value);
+            // Optionally reset local state here or reload?
+        }, 2000);
     }
 
     function rollDice() {
@@ -194,7 +239,6 @@ export const useGameStore = defineStore('game', () => {
 
                 // Turn ENDS immediately (no extra roll for doubles in jail)
                 if (sentToJail) {
-                    // If landed on Go to Prison or drew jail card
                     nextTurn();
                     broadcast();
                     return;
@@ -210,9 +254,10 @@ export const useGameStore = defineStore('game', () => {
                 // SCENARIO 2: Forced exit on 3rd failed attempt
                 if (player.jailTurns >= 3) {
                     const map = gameState.value.settings.mapSelection;
-                    const fine = (map === 'india' || map === 'bangalore') ? 50000 : 50;
+                    // Adjusted Fine for India Map Scale (50k was too low)
+                    const fine = (map === 'india' || map === 'bangalore') ? 500000 : 50;
 
-                    log(`${player.name} failed 3 times. Must pay $${fine}.`);
+                    log(`${player.name} failed 3 times. Must pay ${formatCurrency(fine)}.`);
                     player.cash -= fine;
                     gameState.value.vacationPot += fine;
                     player.inJail = false;
@@ -224,7 +269,6 @@ export const useGameStore = defineStore('game', () => {
 
                     // Turn ENDS after forced exit
                     if (sentToJail) {
-                        // If landed on Go to Prison
                         nextTurn();
                         broadcast();
                         return;
@@ -278,7 +322,7 @@ export const useGameStore = defineStore('game', () => {
             newPos = newPos % boardLen;
             const salary = gameState.value.settings.passGoAmount;
             player.cash += salary;
-            log(`${player.name} passed GO! Collected $${salary}`);
+            log(`${player.name} passed GO! Collected ${formatCurrency(salary)}`);
             playSound('cash');
         }
 
@@ -293,7 +337,8 @@ export const useGameStore = defineStore('game', () => {
         if (!player || !player.inJail) return;
 
         const map = gameState.value.settings.mapSelection;
-        const fine = (map === 'india' || map === 'bangalore') ? 50000 : 50;
+        // Adjusted Fine for India Map Scale
+        const fine = (map === 'india' || map === 'bangalore') ? 500000 : 50;
 
         // SCENARIO 3: Pay fine
         if (player.cash >= fine) {
@@ -301,7 +346,7 @@ export const useGameStore = defineStore('game', () => {
             gameState.value.vacationPot += fine;
             player.inJail = false;
             player.jailTurns = 0;
-            log(`${player.name} paid $${fine} fine.`);
+            log(`${player.name} paid ${formatCurrency(fine)} fine.`);
             playSound('cash');
 
             // Auto-roll dice and move
@@ -347,7 +392,7 @@ export const useGameStore = defineStore('game', () => {
                 const tenPercent = Math.floor(totalWorth * 0.1);
 
                 // We log the 10% value for fun
-                log(`${player.name} landed on Income Tax. (10% worth: $${tenPercent})`);
+                log(`${player.name} landed on Income Tax. (10% worth: ${formatCurrency(tenPercent)})`);
             }
 
             if (taxAmount > 0) {
@@ -357,7 +402,7 @@ export const useGameStore = defineStore('game', () => {
                 // We'll enable it for fun as it handles amounts nicely
                 gameState.value.vacationPot += taxAmount;
 
-                log(`${player.name} paid ${tile.name}: $${taxAmount} (Pot: $${gameState.value.vacationPot})`);
+                log(`${player.name} paid ${tile.name}: ${formatCurrency(taxAmount)} (Pot: ${formatCurrency(gameState.value.vacationPot)})`);
                 playSound('fail');
             }
         } else if ((tile.type as string) === 'JAIL_VISIT' || tile.name.includes('rison')) {
@@ -377,7 +422,7 @@ export const useGameStore = defineStore('game', () => {
                 const amount = gameState.value.vacationPot;
                 player.cash += amount;
                 gameState.value.vacationPot = 0;
-                log(`${player.name} won the Vacation Pot: $${amount}!`);
+                log(`${player.name} won the Vacation Pot: ${formatCurrency(amount)}!`);
                 playSound('cash');
             }
         } else if (tile.type === 'TREASURE') {
@@ -430,7 +475,7 @@ export const useGameStore = defineStore('game', () => {
         player.lastCreditor = owner.id;
         player.cash -= rentAmount;
         owner.cash += rentAmount;
-        log(`${player.name} paid $${rentAmount} rent to ${owner.name}`);
+        log(`${player.name} paid ${formatCurrency(rentAmount)} rent to ${owner.name}`);
         playSound('cash');
     }
 
@@ -474,7 +519,7 @@ export const useGameStore = defineStore('game', () => {
         if (tile && tile.price !== undefined && tile.price > 0 && !tile.owner && player.cash >= tile.price) {
             player.cash -= tile.price;
             tile.owner = player.id;
-            log(`${player.name} bought ${tile.name} for $${tile.price}`);
+            log(`${player.name} bought ${tile.name} for ${formatCurrency(tile.price)}`);
             playSound('buy');
             broadcast();
         }
@@ -661,9 +706,15 @@ export const useGameStore = defineStore('game', () => {
         const current = gameState.value.players[gameState.value.turnIndex];
         const senderIsCurrent = current ? (current.id === action.from) : false;
 
+        // Update Activity Timestamp
+        gameState.value.lastActivity = Date.now();
+
         switch (action.type) {
             case 'START_GAME':
                 startGame();
+                return;
+            case 'END_GAME':
+                closeGame("Game closed by host.");
                 return;
         }
 
@@ -723,14 +774,24 @@ export const useGameStore = defineStore('game', () => {
 
         if (!card) return;
 
-        log(`${player.name} drew ${type}: ${card.text}`);
+
+        const map = gameState.value.settings.mapSelection;
+        const isScaled = (map === 'india' || map === 'bangalore');
+
+        let val = card.value || 0;
+        if (isScaled && val > 0 && val < 1000) {
+            // Scale rewards for High Value Maps (e.g. 50 -> 500k)
+            val = val * 10000;
+        }
+
+        log(`${player.name} drew ${type}: ${card.text}. Value: ${formatCurrency(val)}`);
 
         // Resolve Action
         if (card.action === 'ADD_CASH') {
-            player.cash += card.value || 0;
+            player.cash += val;
             playSound('cash');
         } else if (card.action === 'SUB_CASH') {
-            player.cash -= card.value || 0;
+            player.cash -= val;
             playSound('fail');
         } else if (card.action === 'GO_TO_JAIL') {
             sendToJail(player);
@@ -799,6 +860,7 @@ export const useGameStore = defineStore('game', () => {
         notify,
         notifications,
         currencySymbol,
-        formatCurrency
+        formatCurrency,
+        closeGame // Exposed for PlayerPanel/Board
     };
 });

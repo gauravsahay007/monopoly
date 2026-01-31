@@ -169,6 +169,7 @@ async function createGame(resume = false) {
       store.gameState.settings = { ...store.gameState.settings, ...rules.value };
       store.addPlayer({
         id: actualPeerId,
+        uid: store.user?.uid,
         name: name.value,
         cash: rules.value.startingCash,
         position: 0,
@@ -194,6 +195,7 @@ function joinGame() {
         type: 'JOIN',
         payload: {
           id: peerId.value,
+          uid: store.user?.uid,
           name: name.value,
           cash: 1500, 
           position: 0,
@@ -240,7 +242,10 @@ async function rejoinRecent() {
 
 <template>
   <div class="lobby-card">
-    <h1 class="title">Monopoly</h1>
+    <h1 class="title">
+        <img src="../assets/logo.svg" class="logo-icon" />
+        Monopoly
+    </h1>
     
     <div v-if="!initialized || authLoading" class="loading">
        <span v-if="authLoading">Verifying Session...</span>
@@ -387,6 +392,15 @@ async function rejoinRecent() {
   color: var(--primary);
   margin-bottom: 2rem;
   letter-spacing: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  height: 2.5rem;
+  width: auto;
 }
 
 .input-group {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useGameStore } from '../store/gameStore';
 import type { TradeOffer } from '../types';
 
@@ -7,12 +7,13 @@ const store = useGameStore();
 
 const props = defineProps<{
     targetPlayerId?: string;
+    viewTrade?: TradeOffer;
 }>();
 
 const emit = defineEmits(['close']);
 
 // Steps: 0 = Select Player, 1 = Configure Trade
-const currentStep = ref(props.targetPlayerId ? 1 : 0);
+const currentStep = ref((props.targetPlayerId || props.viewTrade) ? 1 : 0);
 
 // Selection States
 const selectedTarget = ref(props.targetPlayerId || '');
@@ -20,6 +21,32 @@ const myCashOffer = ref(0);
 const targetCashRequest = ref(0);
 const mySelectedProps = ref<number[]>([]);
 const targetSelectedProps = ref<number[]>([]);
+
+// Initialize from viewTrade if present
+const isViewMode = computed(() => !!props.viewTrade);
+
+watch(() => props.viewTrade, (t) => {
+    if (t) initializeFromTrade(t);
+}, { immediate: true });
+
+function initializeFromTrade(t: TradeOffer) {
+    const amInitiator = t.initiator === store.myId;
+    if (amInitiator) {
+        selectedTarget.value = t.target;
+        myCashOffer.value = t.offerCash;
+        mySelectedProps.value = [...t.offerProperties];
+        targetCashRequest.value = t.requestCash;
+        targetSelectedProps.value = [...t.requestProperties];
+    } else {
+        // I am Target - Viewpoint Inverted for UI (My Side = What I Give)
+        selectedTarget.value = t.initiator;
+        myCashOffer.value = t.requestCash; // What I give
+        mySelectedProps.value = [...t.requestProperties];
+        targetCashRequest.value = t.offerCash; // What they give
+        targetSelectedProps.value = [...t.offerProperties];
+    }
+    currentStep.value = 1;
+}
 
 // Getters
 const me = computed(() => store.me);
@@ -31,8 +58,9 @@ const targetProperties = computed(() => {
     return store.gameState.board.filter(t => t.owner === selectedTarget.value);
 });
 
-// Toggle Logic (same as before)
+// Toggle Logic
 function toggleMyProp(id: number) {
+    if (isViewMode.value) return; // Readonly
     if (mySelectedProps.value.includes(id)) {
         mySelectedProps.value = mySelectedProps.value.filter(x => x !== id);
     } else {
@@ -41,6 +69,7 @@ function toggleMyProp(id: number) {
 }
 
 function toggleTargetProp(id: number) {
+    if (isViewMode.value) return; // Readonly
     if (targetSelectedProps.value.includes(id)) {
         targetSelectedProps.value = targetSelectedProps.value.filter(x => x !== id);
     } else {
@@ -49,6 +78,7 @@ function toggleTargetProp(id: number) {
 }
 
 function selectTarget(id: string) {
+    if (isViewMode.value) return;
     selectedTarget.value = id;
     currentStep.value = 1;
 }
@@ -79,6 +109,24 @@ function sendOffer() {
     store.requestAction({ type: 'OFFER_TRADE', payload: offer, from: store.myId });
     emit('close');
 }
+
+function acceptTrade() {
+    if (!props.viewTrade || !store.myId) return;
+    store.requestAction({ type: 'ACCEPT_TRADE', payload: props.viewTrade.id, from: store.myId });
+    emit('close');
+}
+
+function rejectTrade() {
+    if (!props.viewTrade || !store.myId) return;
+    store.requestAction({ type: 'REJECT_TRADE', payload: props.viewTrade.id, from: store.myId });
+    emit('close');
+}
+
+function cancelTrade() {
+    if (!props.viewTrade || !store.myId) return;
+    store.requestAction({ type: 'CANCEL_TRADE', payload: props.viewTrade.id, from: store.myId });
+    emit('close');
+}
 </script>
 
 <template>
@@ -100,7 +148,11 @@ function sendOffer() {
                 :style="{ borderLeft: `4px solid ${t.color}` }"
                 @click="selectTarget(t.id)"
              >
-                <span class="emoji">{{ t.avatar || '👤' }}</span>
+                <div class="avatar-container">
+                     <img v-if="t.avatar?.startsWith('data:')" :src="t.avatar" class="avatar-img" />
+                     <div v-else-if="t.avatar?.includes('<svg')" v-html="t.avatar" class="avatar-svg"></div>
+                     <span v-else class="emoji">{{ t.avatar || '👤' }}</span>
+                </div>
                 <span class="t-name">{{ t.name }}</span>
              </button>
              
@@ -110,10 +162,10 @@ function sendOffer() {
          </div>
      </div>
 
-     <!-- STEP 1: Configure -->
+     <!-- STEP 1: Configure / View -->
      <div v-else class="trade-modal">
         <div class="modal-header">
-             <h2>🤝 Make a Deal</h2>
+             <h2>{{ isViewMode ? 'Trade Details' : '🤝 Make a Deal' }}</h2>
              <button class="close-btn" @click="$emit('close')">×</button>
          </div>
         
@@ -123,7 +175,7 @@ function sendOffer() {
                 <h3>{{ me.name }} (You)</h3>
                 <div class="cash-box">
                     <label>Cash: {{ store.currencySymbol }}{{ store.formatCurrency(me.cash) }}</label>
-                    <input type="number" v-model="myCashOffer" :max="me.cash" min="0" placeholder="Offer Cash">
+                    <input type="number" v-model="myCashOffer" :max="me.cash" min="0" placeholder="Offer Cash" :disabled="isViewMode">
                 </div>
                 <div class="prop-list">
                     <div 
@@ -144,7 +196,7 @@ function sendOffer() {
                 <h3>Target</h3>
                 
                 <div class="cash-box">
-                   <input type="number" v-model="targetCashRequest" min="0" placeholder="Request Cash">
+                   <input type="number" v-model="targetCashRequest" min="0" placeholder="Request Cash" :disabled="isViewMode">
                 </div>
                 <div class="prop-list">
                     <div 
@@ -162,8 +214,25 @@ function sendOffer() {
         </div>
         
         <div class="actions">
-            <button class="btn-cancel" @click="currentStep = 0">Back</button>
-            <button class="btn-confirm" @click="sendOffer" :disabled="!isValid">Propose Deal</button>
+            <template v-if="isViewMode">
+                <!-- VIEW MODE ACTIONS -->
+                <template v-if="store.myId === viewTrade?.target">
+                    <button class="btn-confirm success" @click="acceptTrade">✔ Accept Deal</button>
+                    <button class="btn-cancel danger" @click="rejectTrade">✖ Reject</button>
+                </template>
+                <template v-else-if="store.myId === viewTrade?.initiator">
+                    <button class="btn-cancel warning" @click="cancelTrade">🚫 Cancel Offer</button>
+                    <button class="btn-cancel" @click="$emit('close')">Close</button>
+                </template>
+                <template v-else>
+                    <div class="status-badge">Waiting...</div>
+                </template>
+            </template>
+            <template v-else>
+                <!-- CREATE MODE ACTIONS -->
+                <button class="btn-cancel" @click="currentStep = 0">Back</button>
+                <button class="btn-confirm" @click="sendOffer" :disabled="!isValid">Propose Deal</button>
+            </template>
         </div>
      </div>
   </div>
@@ -249,8 +318,23 @@ function sendOffer() {
     transform: translateX(5px);
 }
 
+.avatar-container {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.avatar-img, .avatar-svg {
+    width: 100%; height: 100%;
+    object-fit: cover;
+}
+.avatar-svg :deep(svg) {
+    width: 100%; height: 100%;
+}
+
 .t-name { font-weight: 600; }
-.emoji { font-size: 1.5rem; }
+.emoji { font-size: 1.5rem; line-height: 1.2; }
 
 .no-targets {
     text-align: center;
@@ -307,6 +391,11 @@ function sendOffer() {
 .swatch.yellow { background-color: #eab308; }
 .swatch.green { background-color: #16a34a; }
 .swatch.blue { background-color: #2563eb; }
+.swatch.utility { background-color: #94a3b8; }
+.swatch.top-secret { background-color: #a3a3a3; }
+.swatch.airport { background-color: #6366f1; }
+.swatch.special { background-color: white; border: 1px solid #aaa; }
+.swatch.dark-blue { background-color: #1e3a8a; }
 
 input {
     width: 100%;
@@ -318,13 +407,18 @@ input {
     border-radius: 8px;
     font-size: 1rem;
 }
+input:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .actions {
     display: flex;
     justify-content: flex-end;
     gap: 1rem;
 }
-.btn-cancel { background: transparent; border: 1px solid #565f89; color: #a9aeb8; }
-.btn-confirm { background: #7aa2f7; color: #1a1b26; font-weight: 800; }
+.btn-cancel { background: transparent; border: 1px solid #565f89; color: #a9aeb8; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+.btn-confirm { background: #7aa2f7; color: #1a1b26; font-weight: 800; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; }
 .btn-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-confirm.success { background: #10b981; color: white; }
+.btn-cancel.danger { border-color: #ef4444; color: #ef4444; }
+.btn-cancel.warning { border-color: #f59e0b; color: #f59e0b; }
 </style>
