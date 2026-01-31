@@ -136,56 +136,51 @@ export const useGameStore = defineStore('game', () => {
                 player.inJail = false;
                 player.jailTurns = 0;
                 movePlayer(player, d1 + d2);
+                // Turn ends after movement from jail (simplified)
+                gameState.value.dice = [0, 0];
+                broadcast();
+                return;
             } else {
                 player.jailTurns++;
                 log(`${player.name} failed double roll. Attempt ${player.jailTurns}/3.`);
                 if (player.jailTurns >= 3) {
                     // Force fine
-                    // ... logic omitted for brevity, keeping standard checks ...
+                    log(`${player.name} failed 3 times. Must pay $50.`);
                     player.inJail = false;
                     player.jailTurns = 0;
                     player.cash -= 50;
+                    gameState.value.vacationPot += 50;
                     movePlayer(player, d1 + d2);
+                } else {
+                    nextTurn();
+                    return;
                 }
             }
-            // Turn ends (simplified)
-            if (!player.inJail && d1 === d2) {
-                // Double out of jail -> normally turn ends immediately in generic rules, 
-                // but some rules allow moving. We kept moving. 
-                // For robust logic, let's just nextTurn unless we implement 'roLLING AGAIN'.
-            }
-            if (!player.inJail) {
-                // Moved
-            }
-            nextTurn();
-            return;
-        }
-
-        // NORMAL LOGIC
-        if (d1 === d2) {
-            gameState.value.consecutiveDoubles++;
-            if (gameState.value.consecutiveDoubles >= 3) {
-                log(`${player.name} rolled 3 doubles! Speeding to Jail!`);
-                sendToJail(player);
-                nextTurn();
-                return;
-            }
-            log(`${player.name} rolled Doubles! (${d1}-${d2})`);
         } else {
-            gameState.value.consecutiveDoubles = 0;
-            // Only move to next turn if NOT doubles
+            // NORMAL LOGIC
+            if (d1 === d2) {
+                gameState.value.consecutiveDoubles++;
+                if (gameState.value.consecutiveDoubles >= 3) {
+                    log(`${player.name} rolled 3 doubles! Speeding to Jail!`);
+                    sendToJail(player);
+                    nextTurn();
+                    return;
+                }
+                log(`${player.name} rolled Doubles! (${d1}-${d2})`);
+            } else {
+                gameState.value.consecutiveDoubles = 0;
+            }
+
+            const steps = d1 + d2;
+            log(`${player.name} rolled ${steps} (${d1}+${d2})`);
+            movePlayer(player, steps);
         }
 
-        const steps = d1 + d2;
-        log(`${player.name} rolled ${steps} (${d1}+${d2})`);
-        movePlayer(player, steps);
-
-        // If not doubles, next turn. If doubles, roll again (client requests ROLL_DICE again).
-        // BUT for simplicity in this implementation, let's auto-end turn if not doubles.
+        // If not doubles, or if we just broke out of jail (handled above), nextTurn logic
         if (d1 !== d2) {
             nextTurn();
         } else {
-            broadcast(); // Update state so client can roll again
+            broadcast();
         }
     }
 
@@ -205,24 +200,61 @@ export const useGameStore = defineStore('game', () => {
         handleLanding(player);
     }
 
-    // ... Landings, Pay Rent, etc. standard ...
     function handleLanding(player: Player) {
         const tile = gameState.value.board[player.position];
-        // ... (Standard logic from before) ...
-        if (tile.type === 'PROPERTY' && tile.owner && tile.owner !== player.id) {
-            // Pay rent logic
-            // Simplified for this restore block
-            const owner = gameState.value.players.find(p => p.id === tile.owner);
-            if (owner) {
-                let rent = 10;
-                if (tile.rent) rent = tile.rent[tile.houseCount || 0];
-                player.cash -= rent;
-                owner.cash += rent;
-                log(`${player.name} paid $${rent} rent to ${owner.name}`);
+        if (!tile) return;
+
+        if (tile.type === 'PROPERTY' || tile.type === 'AIRPORT' || tile.type === 'UTILITY') {
+            if (tile.owner && tile.owner !== player.id) {
+                payRent(player, tile);
+            }
+        } else if (tile.type === 'TAX') {
+            const tax = tile.amount || 200;
+            player.cash -= tax;
+            gameState.value.vacationPot += tax;
+            log(`${player.name} paid Tax: $${tax}`);
+            playSound('fail');
+        } else if ((tile.type as string) === 'JAIL_VISIT' && tile.name.toLowerCase().includes('go to')) {
+            sendToJail(player);
+        } else if (tile.type === 'VACATION') {
+            if (gameState.value.vacationPot > 0) {
+                const pot = gameState.value.vacationPot;
+                player.cash += pot;
+                gameState.value.vacationPot = 0;
+                log(`${player.name} won Vacation Pot: $${pot}`);
                 playSound('cash');
             }
+        } else if (tile.type === 'TREASURE') {
+            pickCard(player, 'TREASURE');
+        } else if (tile.type === 'SURPRISE') {
+            pickCard(player, 'SURPRISE');
         }
-        // ...
+    }
+
+    function payRent(player: Player, tile: Tile) {
+        if (!tile.owner) return;
+        const owner = gameState.value.players.find(p => p.id === tile.owner);
+        if (!owner || owner.bankrupt) return;
+
+        let rent = 10;
+        if (tile.type === 'PROPERTY') {
+            // Safe access to rent array
+            rent = tile.rent?.[tile.houseCount || 0] ?? 10;
+        } else if (tile.type === 'AIRPORT') {
+            // 25 * count
+            const count = gameState.value.board.filter(b => b.type === 'AIRPORT' && b.owner === tile.owner).length;
+            rent = 25 * Math.pow(2, count - 1);
+        } else if (tile.type === 'UTILITY') {
+            const count = gameState.value.board.filter(b => b.type === 'UTILITY' && b.owner === tile.owner).length;
+            const roll = gameState.value.dice[0] + gameState.value.dice[1];
+            rent = roll * (count === 2 ? 10 : 4);
+        }
+
+        player.cash -= rent;
+        owner.cash += rent;
+        player.lastCreditor = owner.id;
+        log(`${player.name} paid $${rent} rent to ${owner.name}`);
+        playSound('cash');
     }
 
     function sendToJail(player: Player) {
@@ -231,6 +263,7 @@ export const useGameStore = defineStore('game', () => {
         player.inJail = true;
         player.jailTurns = 0;
         log(`${player.name} went to Court/Jail!`);
+        playSound('fail');
     }
 
     function nextTurn() {
@@ -245,13 +278,140 @@ export const useGameStore = defineStore('game', () => {
 
         gameState.value.turnIndex = nextIdx;
         gameState.value.dice = [0, 0];
-        // Don't reset consec doubles if keeping turn? nextTurn implies change of player.
         gameState.value.consecutiveDoubles = 0;
 
         broadcast();
     }
 
-    // ... Buy, Bankruptcy, Trade ...
+    function buyProperty(playerId: string) {
+        if (!isHost.value) return;
+        const player = gameState.value.players.find(p => p.id === playerId);
+        if (!player || player.bankrupt) return;
+        const tile = gameState.value.board[player.position];
+
+        if (tile && tile.price && !tile.owner && player.cash >= tile.price) {
+            player.cash -= tile.price;
+            tile.owner = player.id;
+            log(`${player.name} bought ${tile.name} for $${tile.price}`);
+            playSound('buy');
+            broadcast();
+        }
+    }
+
+    function declareBankruptcy(playerId: string) {
+        if (!isHost.value) return;
+        const player = gameState.value.players.find(p => p.id === playerId);
+        if (!player) return;
+        player.bankrupt = true;
+        player.cash = 0;
+
+        // Reset assets
+        gameState.value.board.forEach(t => {
+            if (t.owner === playerId) {
+                t.owner = null;
+                t.houseCount = 0;
+            }
+        });
+
+        log(`${player.name} is Bankrupt!`);
+        playSound('fail');
+        nextTurn();
+    }
+
+    function payJailFine(playerId: string) {
+        if (!isHost.value) return;
+        const player = gameState.value.players.find(p => p.id === playerId);
+        if (!player || !player.inJail) return;
+
+        if (player.cash >= 50) {
+            player.cash -= 50;
+            gameState.value.vacationPot += 50;
+            player.inJail = false;
+            player.jailTurns = 0;
+            log(`${player.name} paid Jail Fine.`);
+            playSound('cash');
+            broadcast();
+        }
+    }
+
+    // Trade Logic
+    function offerTrade(offer: TradeOffer) {
+        if (!isHost.value) return;
+        gameState.value.currentTrade = { ...offer, status: 'PENDING' };
+        log(`Trade offered by ${gameState.value.players.find(p => p.id === offer.initiator)?.name}`);
+        broadcast();
+    }
+
+    function acceptTrade(tradeId: string) {
+        if (!isHost.value) return;
+        const trade = gameState.value.currentTrade;
+        if (!trade || trade.id !== tradeId) return;
+
+        const p1 = gameState.value.players.find(p => p.id === trade.initiator);
+        const p2 = gameState.value.players.find(p => p.id === trade.target);
+
+        if (p1 && p2) {
+            p1.cash -= trade.offerCash;
+            p2.cash += trade.offerCash;
+            p2.cash -= trade.requestCash;
+            p1.cash += trade.requestCash;
+
+            trade.offerProperties.forEach(id => {
+                const t = gameState.value.board.find(x => x.id === id);
+                if (t && t.owner === p1.id) t.owner = p2.id;
+            });
+
+            trade.requestProperties.forEach(id => {
+                const t = gameState.value.board.find(x => x.id === id);
+                if (t && t.owner === p2.id) t.owner = p1.id;
+            });
+
+            log('Trade completed!');
+            playSound('cash');
+        }
+        gameState.value.currentTrade = null;
+        broadcast();
+    }
+
+    function rejectTrade(tradeId: string) {
+        if (!isHost.value) return;
+        if (gameState.value.currentTrade?.id !== tradeId) return;
+
+        gameState.value.currentTrade = null;
+        log('Trade Rejected.');
+        broadcast();
+    }
+
+    function cancelTrade(tradeId: string) {
+        if (!isHost.value) return;
+        if (gameState.value.currentTrade?.id !== tradeId) return;
+
+        gameState.value.currentTrade = null;
+        log('Trade Cancelled.');
+        broadcast();
+    }
+
+    function pickCard(player: Player, type: 'TREASURE' | 'SURPRISE') {
+        const deck = type === 'TREASURE' ? treasureData : surpriseData;
+        const card = deck[Math.floor(Math.random() * deck.length)];
+
+        if (!card) return; // Fix potential undefined
+
+        log(`${player.name} drew ${type}: ${card.text}`);
+
+        if (card.action === 'ADD_CASH') {
+            player.cash += (card.value || 0);
+        } else if (card.action === 'SUB_CASH') {
+            player.cash -= (card.value || 0);
+        } else if (card.action === 'GO_TO_JAIL') {
+            sendToJail(player);
+        } else if (card.action === 'MOVE_TO') {
+            if (card.targetId !== undefined) {
+                player.position = card.targetId;
+                handleLanding(player);
+            }
+        }
+    }
 
     function updateState(newState: GameState) {
         // CRITICAL: Preserve local identity fields
@@ -325,11 +485,38 @@ export const useGameStore = defineStore('game', () => {
             if (gameState.value.dice[0] === 0) rollDice();
             return;
         }
+        if (action.type === 'BUY_PROPERTY') {
+            buyProperty(action.from);
+            return;
+        }
+        if (action.type === 'PAY_JAIL_FINE') {
+            payJailFine(action.from);
+            return;
+        }
         if (action.type === 'END_TURN') {
             nextTurn();
             return;
         }
-        // ... other actions
+        if (action.type === 'OFFER_TRADE') {
+            offerTrade(action.payload);
+            return;
+        }
+        if (action.type === 'ACCEPT_TRADE') {
+            acceptTrade(action.payload);
+            return;
+        }
+        if (action.type === 'REJECT_TRADE') {
+            rejectTrade(action.payload);
+            return;
+        }
+        if (action.type === 'CANCEL_TRADE') {
+            cancelTrade(action.payload);
+            return;
+        }
+        if (action.type === 'BANKRUPTCY') {
+            declareBankruptcy(action.from);
+            return;
+        }
     }
 
     function setIdentity(id: string, host: boolean) {
@@ -342,6 +529,23 @@ export const useGameStore = defineStore('game', () => {
         roomId.value = id;
         gameState.value.currentRoomId = id;
     }
+
+    // Getters
+    const currentPlayer = computed(() => {
+        if (!gameState.value.players.length) return undefined;
+        return gameState.value.players[gameState.value.turnIndex];
+    });
+
+    const me = computed(() => gameState.value.players.find(p => p.id === myId.value));
+
+    const isMyTurn = computed(() => {
+        const current = currentPlayer.value;
+        return current && current.id === myId.value;
+    });
+
+    const properties = computed(() => {
+        return gameState.value.board.filter(t => t.owner);
+    });
 
     return {
         gameState,
@@ -362,6 +566,18 @@ export const useGameStore = defineStore('game', () => {
         loadGame,
         deleteOldGame,
         requestAction,
-        processAction
+        processAction,
+        buyProperty,
+        payJailFine,
+        declareBankruptcy,
+        offerTrade,
+        acceptTrade,
+        rejectTrade,
+        cancelTrade,
+        // Getters
+        currentPlayer,
+        me,
+        isMyTurn,
+        properties
     };
 });

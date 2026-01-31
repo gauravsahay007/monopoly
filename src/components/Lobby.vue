@@ -90,7 +90,7 @@ onMounted(() => {
 
 async function handleGoogleLogin() {
     try {
-        const u = await loginWithGoogle();
+        await loginWithGoogle();
         // Auth state listener will handle the rest
     } catch (e) {
         store.notify("Login failed", "error");
@@ -158,10 +158,6 @@ function startGame() {
     payload: {},
     from: peerId.value
   });
-}
-
-function playOnline() {
-    alert("Matchmaking not implemented! Create a private game for now.");
 }
 
 function copyRoomCode() {
