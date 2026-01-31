@@ -2,6 +2,7 @@
 import { useGameStore } from '../store/gameStore';
 import TradeModal from './TradeModal.vue';
 import AvatarDisplay from './AvatarDisplay.vue';
+import { clearGameData } from '../multiplayer/peer';
 import { ref, computed } from 'vue';
 
 const store = useGameStore();
@@ -15,6 +16,15 @@ function getOwnedProperties(playerId: string) {
 function declareBankruptcy() {
     if (confirm("Are you sure? You will lose everything and leave the game.")) {
         store.requestAction({ type: 'BANKRUPTCY', payload: {}, from: store.myId! });
+    }
+}
+
+async function endGame() {
+    if (confirm("Are you sure you want to END the game for everyone? This will delete the room.")) {
+        if (store.roomId) {
+            await clearGameData(store.roomId);
+            window.location.href = "/"; // Go back to lobby
+        }
     }
 }
 
@@ -65,9 +75,12 @@ function getPlayer(id: string) {
     
     <!-- Actions Row -->
     <div class="action-row" v-if="store.me">
-        <button class="btn-vote" @click="votekick">👤× Votekick</button>
+        <button class="btn-vote" @click="votekick">👤× Kick</button>
         <button v-if="!store.me.bankrupt" class="btn-bankrupt" @click="declareBankruptcy">
            🚩 Bankrupt
+        </button>
+        <button v-if="store.isHost" class="btn-end" @click="endGame">
+           🛑 End
         </button>
     </div>
 
@@ -259,7 +272,7 @@ function getPlayer(id: string) {
     gap: 10px;
 }
 
-.btn-vote, .btn-bankrupt {
+.btn-vote, .btn-bankrupt, .btn-end {
     flex: 1;
     padding: 8px;
     border-radius: 6px;
@@ -278,6 +291,12 @@ function getPlayer(id: string) {
 
 .btn-bankrupt {
     background: linear-gradient(90deg, #ef4444, #dc2626);
+    color: white;
+}
+
+.btn-end {
+    background: #7f1d1d; /* Dark Red */
+    border: 1px solid #ef4444;
     color: white;
 }
 

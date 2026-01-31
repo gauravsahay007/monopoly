@@ -1,5 +1,5 @@
 import { db } from '../firebase';
-import { doc, onSnapshot, setDoc, addDoc, collection, deleteDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, addDoc, collection, deleteDoc, getDocs } from 'firebase/firestore';
 import { useGameStore } from '../store/gameStore';
 
 // Subscription Cleanups
@@ -8,14 +8,12 @@ let unsubscribeActions: (() => void) | null = null; // For Host
 
 export function initPeer(id: string | undefined, onOpen: (id: string) => void, onError?: (err: any) => void) {
     console.log("Initializing Firebase Sync...");
-    // Fix unused variable warning
     if (onError) { }
 
     // Just pass back the ID. Firebase handles the connection.
     if (id) {
         onOpen(id);
     } else {
-        // Fallback for anonymous? Prefer Auth.
         onOpen("anon_" + Math.random().toString(36).substr(2, 9));
     }
 }
@@ -28,22 +26,30 @@ export function connectToHost(roomId: string, onConnected?: () => void, onError?
     console.log(`Connecting to Game: ${roomId}`);
 
     const gameRef = doc(db, "games", roomId);
+    let hasConnected = false;
 
     unsubscribeState = onSnapshot(gameRef, (doc) => {
         if (doc.exists()) {
             const data = doc.data();
             const store = useGameStore();
-            // Using a timestamp check or versioning could help, but for now strict replace is fine
+
             if (data.state) {
                 store.updateState(data.state);
             }
-            // Fire connected callback on first successful read
-            if (onConnected) {
+
+            // Fix Infinite Loop: Only fire onConnected ONCE
+            if (!hasConnected && onConnected) {
+                hasConnected = true;
                 onConnected();
             }
         } else {
-            console.warn("Game document does not exist!");
-            if (onError) onError("Game room not found");
+            console.warn("Game document does not exist (or was deleted)!");
+            if (hasConnected) {
+                // Game was running but now deleted -> End Game
+                if (onError) onError("Host ended the game.");
+            } else {
+                if (onError) onError("Game room not found");
+            }
         }
     }, (err) => {
         console.error("Firebase Read Error:", err);
@@ -63,12 +69,12 @@ export function initializeHost(roomId: string) {
         snapshot.docChanges().forEach(async (change) => {
             if (change.type === "added") {
                 const actionData = change.doc.data();
-                const store = useGameStore(); // Always get fresh store
+                const store = useGameStore();
 
                 console.log("🎮 Action Received:", actionData.type);
                 store.processAction(actionData as any);
 
-                // Delete action after processing to prevent duplicate handling on restart
+                // Cleanup action
                 try {
                     await deleteDoc(change.doc.ref);
                 } catch (e) { console.warn("Failed to cleanup action", e); }
@@ -80,12 +86,9 @@ export function initializeHost(roomId: string) {
 export function broadcastState(state: any) {
     const store = useGameStore();
     const roomId = store.roomId;
-    if (!store.isHost || !roomId) return; // Only Host writes state
+    if (!store.isHost || !roomId) return;
 
-    // Write state to Firestore
     const gameRef = doc(db, "games", roomId);
-
-    // Strip proxies
     const payload = JSON.parse(JSON.stringify(state));
 
     setDoc(gameRef, {
@@ -110,4 +113,24 @@ export function sendAction(action: any) {
     }).catch(err => {
         console.error("Send Action Error:", err);
     });
+}
+
+export async function clearGameData(roomId: string) {
+    console.log("Clearing game data for:", roomId);
+    try {
+        // Delete main doc
+        await deleteDoc(doc(db, "games", roomId));
+
+        // Note: Subcollections are NOT automatically deleted in Client SDK.
+        // We can try to delete actions if we want to be thorough, 
+        // but since the main doc is gone, listeners will mist likely error/stop matching.
+        // For a hackathon/demo, deleting the main doc is sufficient to "close" the room.
+
+        const actionsRef = collection(db, "games", roomId, "actions");
+        const snapshot = await getDocs(actionsRef);
+        snapshot.forEach((doc) => deleteDoc(doc.ref));
+
+    } catch (e) {
+        console.error("Error clearing game data:", e);
+    }
 }
