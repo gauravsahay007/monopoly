@@ -68,14 +68,35 @@ function handleIncomingConnection(conn: DataConnection) {
     });
 }
 
-export function connectToHost(hostId: string, onConnected?: () => void) {
-    if (!peer) return;
-    const conn = peer.connect(hostId);
+export function connectToHost(hostId: string, onConnected?: () => void, onError?: (msg: string) => void) {
+    if (!peer) {
+        if (onError) onError("Peer not initialized");
+        return;
+    }
+
+    console.log(`Attempting to connect to Host: ${hostId}`);
+    const conn = peer.connect(hostId, { reliable: true });
     hostConnection = conn;
 
+    // Connection Timeout (PeerJS sometimes hangs silently if host is offline)
+    const timeout = setTimeout(() => {
+        if (!conn.open) {
+            console.warn("Connection attempt timed out");
+            conn.close();
+            if (onError) onError("Connection timed out. Host may be offline or Room ID is invalid.");
+        }
+    }, 5000);
+
     conn.on('open', () => {
-        console.log('Connected to Host');
+        clearTimeout(timeout);
+        console.log('✅ Connected to Host!');
         if (onConnected) onConnected();
+    });
+
+    conn.on('error', (err) => {
+        clearTimeout(timeout);
+        console.error("Connection Error:", err);
+        if (onError) onError("Connection Error: " + err);
     });
 
     conn.on('data', (data: any) => {
@@ -84,6 +105,20 @@ export function connectToHost(hostId: string, onConnected?: () => void) {
             store.updateState(data.payload);
         }
     });
+
+    conn.on('close', () => {
+        console.log("Connection closed.");
+    });
+
+    // Listen for global peer errors related to this connection (e.g. peer-unavailable)
+    const errHandler = (err: any) => {
+        if (err.type === 'peer-unavailable' && err.message.includes(hostId)) {
+            clearTimeout(timeout);
+            if (onError) onError(`Room "${hostId}" not found. Host is offline.`);
+            peer?.off('error', errHandler); // Cleanup
+        }
+    };
+    peer.on('error', errHandler);
 }
 
 export function broadcastState(state: any) {

@@ -15,6 +15,7 @@ const showRules = ref(false);
 const selectedColor = ref('#ef4444');
 const authLoading = ref(true);
 const recentRoomId = ref<string | null>(null);
+const joining = ref(false);
 
 const colors = [
     '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#64748b'
@@ -130,26 +131,41 @@ async function createGame() {
 
 function joinGame() {
   if (!name.value || !roomIdInput.value) return alert("Enter name and room ID");
+  
+  joining.value = true;
   store.setIdentity(peerId.value, false); // Client
   store.setRoomId(roomIdInput.value);
   
-  connectToHost(roomIdInput.value, () => {
-      store.requestAction({
-        type: 'JOIN',
-        payload: {
-          id: peerId.value,
-          name: name.value,
-          cash: 1500, // This will be ignored/overwritten by host logic usually, but required by type
-          position: 0,
-          color: selectedColor.value,
-          inJail: false,
-          jailTurns: 0,
-          isHost: false,
-          avatar: store.user?.photoURL || '🙂'
-        },
-        from: peerId.value
-      });
-  });
+  // Connect with error handling
+  connectToHost(
+    roomIdInput.value, 
+    () => {
+        joining.value = false;
+        store.notify("Connected! Joining game...", "success");
+        store.requestAction({
+            type: 'JOIN',
+            payload: {
+                id: peerId.value,
+                name: name.value,
+                cash: 1500, // Placeholder
+                position: 0,
+                color: selectedColor.value,
+                inJail: false,
+                jailTurns: 0,
+                isHost: false,
+                avatar: store.user?.photoURL || '🙂'
+            },
+            from: peerId.value
+        });
+    },
+    (err: string) => {
+        joining.value = false;
+        store.notify(err, "error");
+        alert("Failed to join: " + err); // Explicit UI
+        store.setRoomId(""); // Reset room ID on failure
+        store.gameState.status = 'LOBBY'; // Ensure logic stays in lobby
+    }
+  );
 }
 
 function startGame() {
@@ -166,7 +182,7 @@ function copyRoomCode() {
 }
 
 function copyRoomLink() {
-const link = `${window.location.origin}${window.location.pathname}?room=${store.roomId}`;
+    const link = `${window.location.origin}${window.location.pathname}?room=${store.roomId}`;
     navigator.clipboard.writeText(link);
     store.notify("Room link copied!", "success");
 }
@@ -238,7 +254,9 @@ const link = `${window.location.origin}${window.location.pathname}?room=${store.
         <button @click="createGame" class="btn-primary">Create Private Game</button>
         <div class="join-area">
           <input v-model="roomIdInput" placeholder="Room Code" />
-          <button @click="joinGame" class="btn-secondary">Join</button>
+          <button @click="joinGame" class="btn-secondary" :disabled="joining">
+              {{ joining ? 'Joining...' : 'Join' }}
+          </button>
         </div>
       </div>
     </div>
@@ -427,6 +445,7 @@ input, select {
 .btn-primary { background: #374151; color: white; width: 100%; border: 1px solid #4b5563; }
 .btn-secondary { background: var(--accent); color: white; }
 .btn-start { background: var(--success); color: white; width: 100%; font-size: 1.2rem; padding: 1rem; }
+.btn-secondary:disabled { opacity: 0.7; cursor: not-allowed; }
 
 .room-header {
     display: flex;
