@@ -60,14 +60,17 @@ watch(() => store.user, async (u) => {
 
         // Init Peer with UID
         if (!initialized.value) {
+            console.log('🔌 Attempting to initialize peer with UID:', u.uid);
             initPeer(u.uid, (id) => {
                 peerId.value = id;
                 initialized.value = true;
+                console.log('✅ Peer initialized successfully with ID:', id);
             }, (err) => {
-                console.warn("Lobby: Peer UID fail, fallback to random", err);
+                console.warn("⚠️ Lobby: Peer UID init failed, fallback to random", err);
                 initPeer(undefined, (rid) => {
                     peerId.value = rid;
                     initialized.value = true;
+                    console.log('✅ Peer initialized with random ID:', rid);
                 });
             });
         }
@@ -139,17 +142,20 @@ function copyRoomLink() {
 async function createGame(resume = false) {
   if (!name.value) return store.notify("Please enter your name", "error");
   
-  // The official room ID for sharing
-  const officialRoomId = store.user?.uid || peerId.value;
-  const storageKey = store.user?.uid || officialRoomId;
+  // CRITICAL FIX: Use the ACTUAL peer ID as the room ID
+  // This ensures guests connect to the peer we're actually listening on
+  const actualPeerId = peerId.value;
+  const storageKey = store.user?.uid || actualPeerId;
+
+  console.log('🎮 Creating game with Peer ID:', actualPeerId, 'Storage Key:', storageKey);
 
   if (!resume) {
       // Delete previous game session if starting fresh
       await store.deleteOldGame(storageKey);
   }
   
-  store.setIdentity(peerId.value, true); // My network ID
-  store.setRoomId(officialRoomId); // The ID others use to join
+  store.setIdentity(actualPeerId, true); // My network ID
+  store.setRoomId(actualPeerId); // FIXED: Use actual peer ID, not UID
   
   let loaded = false;
   if (resume) {
@@ -161,7 +167,7 @@ async function createGame(resume = false) {
   } else {
       store.gameState.settings = { ...store.gameState.settings, ...rules.value };
       store.addPlayer({
-        id: peerId.value,
+        id: actualPeerId,
         name: name.value,
         cash: rules.value.startingCash,
         position: 0,
@@ -173,6 +179,8 @@ async function createGame(resume = false) {
       });
       if (!resume) store.notify("New game created!", "success");
   }
+  
+  console.log('✅ Game created. Room ID:', store.roomId, 'Players:', store.gameState.players.length);
 }
 
 function joinGame() {

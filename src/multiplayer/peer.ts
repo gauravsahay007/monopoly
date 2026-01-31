@@ -2,12 +2,14 @@ import Peer, { type DataConnection } from 'peerjs';
 import { useGameStore } from '../store/gameStore';
 
 let peer: Peer | null = null;
-let connections: DataConnection[] = []; // Host keeps track of clients
+let connections = new Map<string, DataConnection>(); // Host: Map of peerId -> connection
 let hostConnection: DataConnection | null = null; // Client connection to host
 
 export function initPeer(id?: string, onOpen?: (id: string) => void, onError?: (err: any) => void) {
     if (peer) {
         peer.destroy();
+        connections.forEach(c => c.close());
+        connections.clear();
     }
     console.log("Initializing Peer with ID:", id || "Auto-generated");
     peer = id ? new Peer(id) : new Peer();
@@ -18,7 +20,6 @@ export function initPeer(id?: string, onOpen?: (id: string) => void, onError?: (
     });
 
     peer.on('connection', (conn) => {
-        // I am being connected to (I am likely Host)
         handleIncomingConnection(conn);
     });
 
@@ -33,23 +34,28 @@ function handleIncomingConnection(conn: DataConnection) {
 
     conn.on('open', () => {
         console.log('Connected to: ', conn.peer);
-        connections.push(conn);
+        // Replace existing connection if same peer reconnects
+        if (connections.has(conn.peer)) {
+            connections.get(conn.peer)?.close();
+        }
+        connections.set(conn.peer, conn);
 
-        // If I am host, send current state immediately
         if (store.isHost) {
-            conn.send({ type: 'STATE_UPDATE', payload: JSON.parse(JSON.stringify(store.gameState)) });
+            // Send current state immediately as a plain object
+            conn.send({
+                type: 'STATE_UPDATE',
+                payload: JSON.parse(JSON.stringify(store.gameState))
+            });
         }
     });
 
     conn.on('data', (data: any) => {
-        // Received data
         if (store.isHost) {
-            // Expecting Action
             if (data.type === 'ACTION') {
+                console.log('🎮 Host received action:', data.payload.type, 'from:', data.payload.from);
                 store.processAction(data.payload);
             }
         } else {
-            // Expecting State Update
             if (data.type === 'STATE_UPDATE') {
                 store.updateState(data.payload);
             }
@@ -57,7 +63,7 @@ function handleIncomingConnection(conn: DataConnection) {
     });
 
     conn.on('close', () => {
-        connections = connections.filter(c => c !== conn);
+        connections.delete(conn.peer);
     });
 }
 
@@ -80,18 +86,21 @@ export function connectToHost(hostId: string, onConnected?: () => void) {
 }
 
 export function broadcastState(state: any) {
-    // Only Host calls this
-    connections.forEach(conn => {
+    // Stringify once to strip Vue proxies and send a clean object
+    const payload = JSON.parse(JSON.stringify(state));
+    connections.forEach((conn) => {
         if (conn.open) {
-            conn.send({ type: 'STATE_UPDATE', payload: state });
+            conn.send({ type: 'STATE_UPDATE', payload });
         }
     });
 }
 
 export function sendAction(action: any) {
-    // Only Client calls this
     if (hostConnection && hostConnection.open) {
-        hostConnection.send({ type: 'ACTION', payload: action });
+        hostConnection.send({
+            type: 'ACTION',
+            payload: JSON.parse(JSON.stringify(action))
+        });
     } else {
         console.warn("Not connected to host");
     }

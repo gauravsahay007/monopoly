@@ -73,8 +73,13 @@ export const useGameStore = defineStore('game', () => {
 
     // --- HOST ONLY LOGIC ---
     function addPlayer(player: Player) {
-        if (!isHost.value) return;
-        if (!gameState.value.players.find(p => p.id === player.id)) {
+        console.log('🔧 addPlayer called. isHost:', isHost.value, 'Player:', player.name);
+        if (!isHost.value) {
+            console.warn('⚠️ addPlayer called but not host!');
+            return;
+        }
+        const existingIdx = gameState.value.players.findIndex(p => p.id === player.id);
+        if (existingIdx === -1) {
             // Handle Duplicate Names
             let originalName = player.name;
             let suffix = 2;
@@ -109,7 +114,13 @@ export const useGameStore = defineStore('game', () => {
             }
 
             gameState.value.players.push(player);
+            console.log('✨ Player added successfully:', player.name, 'Total players:', gameState.value.players.length);
             log(`Player ${player.name} joined`);
+            broadcast();
+        } else {
+            // Update existing player (re-join)
+            console.log('🔄 Player rejoined, updating record:', player.name);
+            gameState.value.players[existingIdx] = { ...gameState.value.players[existingIdx], ...player };
             broadcast();
         }
     }
@@ -492,7 +503,16 @@ export const useGameStore = defineStore('game', () => {
     }
 
     function updateState(newState: GameState) {
-        gameState.value = newState;
+        // CRITICAL: Preserve local identity fields to avoid being overwritten by host
+        const localMyId = myId.value;
+        const localRoomId = roomId.value;
+
+        gameState.value = {
+            ...newState,
+            myId: localMyId,
+            currentRoomId: localRoomId
+        };
+        console.log('🔄 State updated from host. My ID:', localMyId, 'Players:', newState.players.length);
     }
 
     function log(msg: string) {
@@ -637,7 +657,9 @@ export const useGameStore = defineStore('game', () => {
         }
 
         if (action.type === 'JOIN') {
+            console.log('👥 Processing JOIN action for:', action.payload.name, 'ID:', action.payload.id);
             addPlayer(action.payload);
+            console.log('✅ Current players in game:', gameState.value.players.map(p => p.name).join(', '));
             return;
         }
 
