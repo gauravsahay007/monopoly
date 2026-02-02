@@ -46,6 +46,14 @@ const ownerName = computed(() => {
     return p ? p.name : 'Unknown'; 
 });
 
+const houseCount = computed(() => {
+    return props.tile.houseCount || 0;
+});
+
+const hasHotel = computed(() => {
+    return houseCount.value >= 5;
+});
+
 </script>
 
 <template>
@@ -70,15 +78,22 @@ const ownerName = computed(() => {
       
       <div class="name" :class="{ small: tile.name.length > 10 }">{{ tile.name }}</div>
       
-      <div v-if="tile.price && tile.type !== 'START' && tile.type !== 'TAX'" class="price">
-        {{ store.currencySymbol }}{{ store.formatCurrency(tile.price) }}
+      <!-- Price Row with Building Indicator -->
+      <div class="price-row">
+        <div v-if="tile.price && tile.type !== 'START' && tile.type !== 'TAX'" class="price">
+          {{ store.currencySymbol }}{{ store.formatCurrency(tile.price) }}
+        </div>
+        <div v-if="tile.amount" class="price">Pay {{ store.currencySymbol }}{{ store.formatCurrency(tile.amount) }}</div>
+        
+        <!-- Building Indicator (next to price) -->
+        <div v-if="tile.owner && tile.type === 'PROPERTY' && (hasHotel || houseCount > 0)" class="building-badge" :style="{ backgroundColor: ownerColor || '#333' }">
+           <span v-if="hasHotel">🏨</span>
+           <span v-else>{{ houseCount }}🏠</span>
+        </div>
       </div>
-      <div v-if="tile.amount" class="price">Pay {{ store.currencySymbol }}{{ store.formatCurrency(tile.amount) }}</div>
       
-      <!-- Owner Indicator -->
-      <div v-if="tile.owner" class="owner-pill" :style="{ backgroundColor: ownerColor || '#333' }">
-         {{ ownerName }}
-      </div>
+      <!-- Owner indicator for non-property tiles -->
+      <div v-if="tile.owner && tile.type !== 'PROPERTY'" class="owner-dot" :style="{ backgroundColor: ownerColor || '#333' }"></div>
       
       <!-- Avatars -->
       <div class="avatars">
@@ -164,8 +179,33 @@ const ownerName = computed(() => {
 
 .price {
   font-size: 0.6rem;
-  color: #9ca3af;
+  color: #e6e9ef;
+  font-weight: 600;
+}
+
+.price-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+.building-badge {
+  font-size: 0.55rem;
+  padding: 1px 3px;
+  border-radius: 3px;
+  color: white;
+  display: flex;
+  align-items: center;
+}
+
+.owner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 3px;
 }
 
 .icon-large {
@@ -205,6 +245,33 @@ const ownerName = computed(() => {
     text-overflow: ellipsis;
 }
 
+.building-indicator {
+    font-size: 0.65rem;
+    color: white;
+    padding: 2px 4px;
+    border-radius: 4px;
+    margin-top: 2px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+}
+
+.hotel-icon {
+    font-size: 0.9rem;
+}
+
+.house-icons {
+    font-size: 0.55rem;
+    display: flex;
+    align-items: center;
+}
+
+.owner-initial {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+}
 
 /* Colors */
 .bg-brown { background-color: #78350f; }

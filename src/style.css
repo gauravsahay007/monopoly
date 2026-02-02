@@ -1,41 +1,50 @@
 :root {
-  /* New Theme Palette */
-  --bg-dark: #0f1014;
-  /* Very dark almost black */
-  --bg-panel: #1a1b26;
-  /* Dark purple/gray */
-  --bg-panel-light: #242636;
+  /* Base Dark Surfaces */
+  --bg-dark: #0e1116;
+  /* Near-black, slightly blue */
+  --bg-panel: #161a22;
+  /* Soft dark slate */
+  --bg-panel-light: #1f2430;
+  /* Raised surface */
 
-  --primary: #8b5cf6;
-  /* Purple for Create/Buy */
-  --primary-hover: #7c3aed;
+  /* Primary Actions (Muted Purple) */
+  --primary: #7a6fd6;
+  --primary-hover: #6b60c9;
 
-  --secondary: #3b82f6;
-  /* Blue for Roll */
-  --secondary-hover: #2563eb;
+  /* Secondary Actions (Soft Blue) */
+  --secondary: #5b7cfa;
+  --secondary-hover: #4a6be0;
 
-  --danger: #ef4444;
-  /* Bankrupt */
-  --danger-hover: #dc2626;
+  /* Danger (Muted Red, not aggressive) */
+  --danger: #c85656;
+  --danger-hover: #b04848;
 
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
+  /* Text */
+  --text-main: #e6e9ef;
+  /* Soft off-white */
+  --text-muted: #9aa4b2;
+  /* Calm gray-blue */
 
-  --border: #2e3040;
+  /* Borders & Dividers */
+  --border: #2a2f3a;
 
-  --board-bg: #dcfce7;
+  /* Board / Canvas Background */
+  --board-bg: #12161d;
+
+  /* Typography */
   --font-main: 'Barlow', system-ui, sans-serif;
 
-  /* Board Colors */
-  --color-brown: #92400e;
-  --color-light-blue: #0ea5e9;
-  --color-pink: #d946ef;
-  --color-orange: #f97316;
-  --color-red: #dc2626;
-  --color-yellow: #eab308;
-  --color-green: #16a34a;
-  --color-blue: #2563eb;
+  /* Board / Property Colors (Dim & Desaturated) */
+  --color-brown: #7a4a2e;
+  --color-light-blue: #5fa7c6;
+  --color-pink: #b56db8;
+  --color-orange: #c87a3a;
+  --color-red: #b84c4c;
+  --color-yellow: #c4a24a;
+  --color-green: #4f9a6a;
+  --color-blue: #4a6fb3;
 }
+
 
 * {
   box-sizing: border-box;

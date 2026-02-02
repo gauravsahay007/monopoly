@@ -50,6 +50,7 @@ export interface GameState {
     vacationPot: number;
     currentTrade?: TradeOffer | null;
     lastActivity?: number; // Timestamp for inactivity timeout
+    lastSound?: { type: string, id: number }; // Synced sound
 }
 
 export interface TradeOffer {
@@ -74,6 +75,7 @@ export interface GameSettings {
     evenBuild?: boolean;
     randomizeOrder?: boolean;
     mapSelection?: string; // 'world', 'india', 'bangalore'
+    soundMuted?: boolean; // Mute MP3 audio files
 }
 
 export interface GameAction {

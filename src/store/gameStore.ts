@@ -30,7 +30,7 @@ export const useGameStore = defineStore('game', () => {
         lastActionLog: [],
         settings: {
             startingCash: 1500,
-            passGoAmount: 200,
+            passGoAmount: 300,
             mapSelection: 'world'
         },
         currentRoomId: null,
@@ -63,12 +63,38 @@ export const useGameStore = defineStore('game', () => {
 
     function notify(message: string, type: 'info' | 'success' | 'error' = 'info') {
         const id = nextNotifyId++;
-        if (type === 'error') playSound('fail');
+        if (type === 'error') playSoundWithSettings('fail');
         notifications.value.push({ id, message, type });
         setTimeout(() => {
             notifications.value = notifications.value.filter(n => n.id !== id);
         }, 4000);
     }
+
+    // LOCAL sound mute preference (not synced - each player controls their own)
+    const localSoundMuted = ref(false);
+
+
+    // Wrapper to pass mute setting to playSound
+    function playSoundWithSettings(type: 'roll' | 'buy' | 'cash' | 'fail' | 'win' | 'turn' | 'bankrupt' | 'hotel' | 'fine' | 'tax' | 'deal' | 'house' | 'vacation') {
+        const isMuted = localSoundMuted.value;
+        playSound(type, isMuted);
+    }
+
+    // Function to toggle sound mute (works for any player, not just host)
+    function toggleSoundMute() {
+        localSoundMuted.value = !localSoundMuted.value;
+        // Save preference to localStorage for persistence
+        try {
+            localStorage.setItem('monopoly_soundMuted', String(localSoundMuted.value));
+        } catch (e) { /* ignore if storage unavailable */ }
+    }
+
+    // Load sound preference from localStorage on init
+    try {
+        const saved = localStorage.getItem('monopoly_soundMuted');
+        if (saved === 'true') localSoundMuted.value = true;
+    } catch (e) { /* ignore */ }
+
 
     // --- HOST ONLY LOGIC ---
     function addPlayer(player: Player) {
@@ -104,7 +130,7 @@ export const useGameStore = defineStore('game', () => {
             const usedColors = gameState.value.players.map(p => p.color);
             if (usedColors.includes(player.color)) {
                 // Assign new random bright color
-                const colors = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e'];
+                const colors = ['#b84c4c', '#c87a3a', '#c4a24a', '#4f9a6a', '#4a6fb3', '#7a6fd6', '#b56db8', '#5fa7c6', '#7a4a2e', '#5fa7c6'];
                 const available = colors.filter(c => !usedColors.includes(c));
                 if (available.length > 0) {
                     const randomColor = available[Math.floor(Math.random() * available.length)];
@@ -163,9 +189,9 @@ export const useGameStore = defineStore('game', () => {
 
         // Set Pass GO amount based on map
         if (mapType === 'india' || mapType === 'bangalore') {
-            gameState.value.settings.passGoAmount = 200000;
+            gameState.value.settings.passGoAmount = 300000;
         } else {
-            gameState.value.settings.passGoAmount = 200;
+            gameState.value.settings.passGoAmount = 300;
         }
 
         // CRITICAL FIX: Set all players' cash to match starting cash setting
@@ -207,7 +233,7 @@ export const useGameStore = defineStore('game', () => {
             lastActionLog: [],
             settings: {
                 startingCash: 1500,
-                passGoAmount: 200,
+                passGoAmount: 300,
                 mapSelection: 'world'
             },
             currentRoomId: null,
@@ -241,7 +267,7 @@ export const useGameStore = defineStore('game', () => {
         const d1 = Math.ceil(Math.random() * 6);
         const d2 = Math.ceil(Math.random() * 6);
         gameState.value.dice = [d1, d2];
-        playSound('roll');
+        playSoundWithSettings('roll');
 
         const player = gameState.value.players[gameState.value.turnIndex];
         if (!player) return;
@@ -257,7 +283,7 @@ export const useGameStore = defineStore('game', () => {
                 log(`${player.name} served max jail time (2 turns). Released for FREE.`);
                 player.inJail = false;
                 player.jailTurns = 0;
-                playSound('cash'); // Positive sound for release
+                playSoundWithSettings('cash'); // Positive sound for release
 
                 log(`${player.name} moves ${d1 + d2}.`);
                 const sentToJail = movePlayer(player, d1 + d2);
@@ -316,7 +342,7 @@ export const useGameStore = defineStore('game', () => {
             const salary = gameState.value.settings.passGoAmount;
             player.cash += salary;
             log(`${player.name} passed GO! Collected ${formatCurrency(salary)}`);
-            playSound('cash');
+            playSoundWithSettings('cash');
         }
 
         player.position = newPos;
@@ -340,7 +366,7 @@ export const useGameStore = defineStore('game', () => {
             player.inJail = false;
             player.jailTurns = 0;
             log(`${player.name} paid ${formatCurrency(fine)} fine.`);
-            playSound('cash');
+            playSoundWithSettings('fine');
 
             // Auto-roll dice and move
             const d1 = Math.ceil(Math.random() * 6);
@@ -396,14 +422,14 @@ export const useGameStore = defineStore('game', () => {
                 gameState.value.vacationPot += taxAmount;
 
                 log(`${player.name} paid ${tile.name}: ${formatCurrency(taxAmount)} (Pot: ${formatCurrency(gameState.value.vacationPot)})`);
-                playSound('fail');
+                playSoundWithSettings('tax');
             }
         } else if ((tile.type as string) === 'JAIL_VISIT' || tile.name.includes('rison')) {
             // "Go to prison" specific logic
             // Check if it's the "Go to Prison" corner or just "Jail Visit"
             if (tile.name.toLowerCase().includes('go to')) {
                 sendToJail(player);
-                playSound('fail');
+                playSoundWithSettings('fail');
                 // SCENARIO 0: Turn ENDS immediately when sent to jail
                 return true;
             } else {
@@ -411,12 +437,13 @@ export const useGameStore = defineStore('game', () => {
             }
         } else if (tile.type === 'VACATION') {
             log(`${player.name} is on Vacation.`);
+            playSoundWithSettings('vacation');
             if (gameState.value.vacationPot > 0) {
                 const amount = gameState.value.vacationPot;
                 player.cash += amount;
                 gameState.value.vacationPot = 0;
                 log(`${player.name} won the Vacation Pot: ${formatCurrency(amount)}!`);
-                playSound('cash');
+                playSoundWithSettings('cash');
             }
         } else if (tile.type === 'TREASURE') {
             log(`${player.name} landed on Treasure.`);
@@ -469,7 +496,7 @@ export const useGameStore = defineStore('game', () => {
         player.cash -= rentAmount;
         owner.cash += rentAmount;
         log(`${player.name} paid ${formatCurrency(rentAmount)} rent to ${owner.name}`);
-        playSound('cash');
+        playSoundWithSettings('tax');
     }
 
     function sendToJail(player: Player) {
@@ -497,7 +524,7 @@ export const useGameStore = defineStore('game', () => {
         const nextP = gameState.value.players[nextIdx];
         if (nextP) {
             log(`Now it's ${nextP.name}'s turn`);
-            playSound('turn');
+            playSoundWithSettings('turn');
         }
         broadcast();
     }
@@ -513,9 +540,67 @@ export const useGameStore = defineStore('game', () => {
             player.cash -= tile.price;
             tile.owner = player.id;
             log(`${player.name} bought ${tile.name} for ${formatCurrency(tile.price)}`);
-            playSound('buy');
+            playSoundWithSettings('buy');
             broadcast();
         }
+    }
+
+    function upgradeProperty(playerId: string, tileIndex: number) {
+        if (!isHost.value) return;
+        const player = gameState.value.players.find(p => p.id === playerId);
+        const tile = gameState.value.board[tileIndex];
+
+        if (!player || !tile || tile.owner !== playerId || tile.type !== 'PROPERTY') return;
+
+        // Check if player owns all properties in the group (monopoly)
+        const groupProps = gameState.value.board.filter(t => t.type === 'PROPERTY' && t.group === tile.group);
+        const ownsAll = groupProps.every(t => t.owner === playerId);
+
+        if (!ownsAll) {
+            notify("You must own all properties in this color group to build!", "error");
+            return;
+        }
+
+        // Calculate build cost (50% of property price or use buildCost if defined)
+        const cost = tile.buildCost || Math.floor((tile.price || 100) * 0.5);
+
+        // Check current house count
+        const currentHouses = tile.houseCount || 0;
+
+        // Max is 5 (4 houses + 1 hotel)
+        if (currentHouses >= 5) {
+            notify("This property already has a hotel!", "error");
+            return;
+        }
+
+        // Check if player has enough cash
+        if (player.cash < cost) {
+            notify(`Not enough cash! Building costs ${formatCurrency(cost)}`, "error");
+            return;
+        }
+
+        // Even Build Rule: Can't build if this property would have 2+ more houses than others
+        const otherPropsInGroup = groupProps.filter(t => t.id !== tile.id);
+        const minHousesInGroup = Math.min(...otherPropsInGroup.map(t => t.houseCount || 0));
+
+        if (currentHouses > minHousesInGroup) {
+            notify("Even build rule: Build on other properties in this group first!", "error");
+            return;
+        }
+
+        // All checks passed, build!
+        player.cash -= cost;
+        tile.houseCount = currentHouses + 1;
+
+        if (tile.houseCount === 5) {
+            log(`${player.name} built a HOTEL on ${tile.name}!`);
+            playSoundWithSettings('hotel');
+        } else {
+            log(`${player.name} built house #${tile.houseCount} on ${tile.name}`);
+            playSoundWithSettings('house');
+        }
+
+        broadcast();
     }
 
     function declareBankruptcy(playerId: string) {
@@ -526,7 +611,7 @@ export const useGameStore = defineStore('game', () => {
         player.cash = 0;
         resetAssetsToBank(playerId);
         log(`${player.name} is Bankrupt!`);
-        playSound('fail');
+        playSoundWithSettings('fail');
         checkWinner();
         nextTurn();
     }
@@ -546,7 +631,7 @@ export const useGameStore = defineStore('game', () => {
             gameState.value.winner = active[0];
             gameState.value.status = 'GAME_OVER';
             if (active[0]) log(`${active[0].name} Wins!`);
-            playSound('win');
+            playSoundWithSettings('win');
             broadcast();
         }
     }
@@ -590,18 +675,31 @@ export const useGameStore = defineStore('game', () => {
         broadcastState(gameState.value);
         if (isHost.value && roomId.value) {
             try {
-                // Use UID as permanent storage key if available
-                const saveId = user.value?.uid || roomId.value;
-                await setDoc(doc(db, "games", saveId), {
-                    state: JSON.parse(JSON.stringify(gameState.value)),
-                    updatedAt: Date.now()
+                const stateSnapshot = JSON.parse(JSON.stringify(gameState.value));
+
+                // ALWAYS save to roomId (for live client sync via onSnapshot)
+                await setDoc(doc(db, "games", roomId.value), {
+                    state: stateSnapshot,
+                    updatedAt: Date.now(),
+                    hostUid: user.value?.uid || null
                 });
 
-                // Also update user's last room for "Rejoin" feature
+                // ALSO save to user UID if different (for persistent rejoin)
+                if (user.value?.uid && user.value.uid !== roomId.value) {
+                    await setDoc(doc(db, "games", user.value.uid), {
+                        state: stateSnapshot,
+                        updatedAt: Date.now(),
+                        roomId: roomId.value
+                    });
+                }
+
+                // Update user's last room for "Rejoin" feature
                 if (user.value?.uid) {
                     await setDoc(doc(db, "users", user.value.uid), {
                         lastRoomId: roomId.value,
-                        lastAccessed: Date.now()
+                        lastHostUid: user.value.uid,
+                        lastAccessed: Date.now(),
+                        wasHost: true
                     }, { merge: true });
                 }
             } catch (e) {
@@ -670,7 +768,7 @@ export const useGameStore = defineStore('game', () => {
 
             log(`Trade completed between ${p1.name} and ${p2.name}!`);
             notify(`🤝 Trade completed: ${p1.name} ↔️ ${p2.name}`, 'success');
-            playSound('cash');
+            playSoundWithSettings('deal');
         }
         gameState.value.currentTrade = null;
         broadcast();
@@ -755,6 +853,12 @@ export const useGameStore = defineStore('game', () => {
             return;
         }
 
+        // Allow building houses/hotels anytime (not just on your turn)
+        if (action.type === 'UPGRADE_PROPERTY') {
+            upgradeProperty(action.from, action.payload);
+            return;
+        }
+
         if (!senderIsCurrent) return;
 
         switch (action.type) {
@@ -794,13 +898,13 @@ export const useGameStore = defineStore('game', () => {
         // Resolve Action
         if (card.action === 'ADD_CASH') {
             player.cash += val;
-            playSound('cash');
+            playSoundWithSettings('cash');
         } else if (card.action === 'SUB_CASH') {
             player.cash -= val;
-            playSound('fail');
+            playSoundWithSettings('fail');
         } else if (card.action === 'GO_TO_JAIL') {
             sendToJail(player);
-            playSound('fail');
+            playSoundWithSettings('fail');
         } else if (card.action === 'MOVE_TO') {
             // handle direct jump
             player.position = (card.targetId !== undefined) ? card.targetId : 0;
@@ -853,6 +957,7 @@ export const useGameStore = defineStore('game', () => {
         movePlayer,
         nextTurn,
         buyProperty,
+        upgradeProperty,
         declareBankruptcy,
         payJailFine,
         setIdentity,
@@ -867,6 +972,8 @@ export const useGameStore = defineStore('game', () => {
         currencySymbol,
         formatCurrency,
         closeGame,
-        resetState
+        resetState,
+        toggleSoundMute,
+        localSoundMuted
     };
 });

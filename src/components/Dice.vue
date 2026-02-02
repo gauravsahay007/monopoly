@@ -73,7 +73,6 @@ const jailFine = computed(() => isIndian.value ? 50000 : 50);
                   Wait in Jail (Cannot Afford)
               </button>
           </div>
-          <p class="jail-hint">Attempt {{ store.me.jailTurns }}/2 - Rolling waits a turn (Free exit after 2 fails)</p>
       </div>
       
       <div v-else class="turn-controls">

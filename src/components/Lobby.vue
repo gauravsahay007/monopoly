@@ -14,11 +14,13 @@ const showRules = ref(false);
 const selectedColor = ref('#ef4444');
 const authLoading = ref(true); // Track if we are waiting for firebase auth state
 const recentRoomId = ref<string | null>(null); // Last room from Firestore
+const recentHostUid = ref<string | null>(null); // Host UID for finding game state
+const recentWasHost = ref(false); // Whether this user was the host
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 const colors = [
-    '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#64748b'
+    '#b84c4c', '#c87a3a', '#c4a24a', '#4f9a6a', '#4a6fb3', '#7a6fd6', '#b56db8', '#5fa7c6'
 ];
 
 const rules = ref({
@@ -51,8 +53,11 @@ watch(() => store.user, async (u) => {
         // Fetch Recent Room meta (Non-blocking)
         getDoc(doc(db, "users", u.uid)).then(userDoc => {
             if (userDoc.exists()) {
-                recentRoomId.value = userDoc.data().lastRoomId;
-                console.log("Lobby: Found recent room:", recentRoomId.value);
+                const data = userDoc.data();
+                recentRoomId.value = data.lastRoomId;
+                recentHostUid.value = data.lastHostUid || data.lastRoomId;
+                recentWasHost.value = data.wasHost || false;
+                console.log("Lobby: Found recent room:", recentRoomId.value, "Host UID:", recentHostUid.value);
             }
         }).catch(e => {
             console.warn("Lobby: Failed to fetch user meta (swallowed)", e);
@@ -84,11 +89,17 @@ watch(() => store.user, async (u) => {
 watch(() => store.roomId, async (newRoom) => {
     if (newRoom && store.user) {
         try {
+            // Find the host to save their UID for more reliable rejoins
+            const hostPlayer = store.gameState.players.find(p => p.isHost);
+            const hostUid = hostPlayer?.uid || newRoom;
+            
             await setDoc(doc(db, "users", store.user.uid), {
                 lastRoomId: newRoom,
-                lastAccessed: Date.now()
+                lastHostUid: hostUid,
+                lastAccessed: Date.now(),
+                wasHost: store.isHost
             }, { merge: true });
-            console.log("Recorded last room:", newRoom);
+            console.log("Recorded last room:", newRoom, "Host UID:", hostUid);
         } catch (e) {
             console.warn("Failed to save room to user profile", e);
         }
@@ -227,14 +238,18 @@ function playOnline() {
 async function rejoinRecent() {
     if (!recentRoomId.value) return;
     
-    // Check if I was the host (UID matches room ID in our convention)
-    const wasHost = (store.user?.uid === recentRoomId.value);
+    // Use stored wasHost flag for more reliable detection
+    const wasHost = recentWasHost.value || (store.user?.uid === recentRoomId.value);
     
     if (wasHost) {
+        // Host: Resume the game and load state from Firestore
         roomIdInput.value = recentRoomId.value;
         await createGame(true); // Call with resume = true
     } else {
-        roomIdInput.value = recentRoomId.value;
+        // Client: Connect to the game using the stored host info
+        // The game might be stored under host UID or room ID
+        const gameRoomId = recentHostUid.value || recentRoomId.value;
+        roomIdInput.value = gameRoomId;
         joinGame();
     }
 }

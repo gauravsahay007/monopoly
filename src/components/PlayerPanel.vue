@@ -82,6 +82,18 @@ function getInitials(name: string) {
         </div>
     </div>
     
+    <!-- Sound Settings (available to all players) -->
+    <div class="sound-settings">
+        <button 
+            class="btn-sound-toggle" 
+            @click="store.toggleSoundMute()"
+            :class="{ muted: store.localSoundMuted }"
+        >
+            <span class="sound-icon">{{ store.localSoundMuted ? '🔇' : '🔊' }}</span>
+            <span class="sound-label">{{ store.localSoundMuted ? 'Sounds Muted' : 'Sounds On' }}</span>
+        </button>
+    </div>
+    
     <!-- Actions Row -->
     <div class="action-row" v-if="store.me">
         <button class="btn-vote" @click="votekick">👤× Kick</button>
@@ -277,6 +289,56 @@ function getInitials(name: string) {
 }
 
 .crown { color: gold; font-size: 0.8rem; }
+
+/* Sound Settings */
+.sound-settings {
+    background: rgba(255,255,255,0.02);
+    border-radius: 8px;
+    padding: 10px;
+    margin: 0 -5px;
+}
+
+.btn-sound-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid rgba(122, 162, 247, 0.3);
+    background: linear-gradient(135deg, rgba(122, 162, 247, 0.1), rgba(122, 162, 247, 0.05));
+    color: #7aa2f7;
+    transition: all 0.2s;
+}
+
+.btn-sound-toggle:hover {
+    background: linear-gradient(135deg, rgba(122, 162, 247, 0.2), rgba(122, 162, 247, 0.1));
+    border-color: rgba(122, 162, 247, 0.5);
+    transform: translateY(-1px);
+}
+
+.btn-sound-toggle.muted {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.btn-sound-toggle.muted:hover {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1));
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+.sound-icon {
+    font-size: 1.2rem;
+}
+
+.sound-label {
+    font-size: 0.8rem;
+}
 
 /* Buttons */
 .action-row {

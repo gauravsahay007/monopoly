@@ -163,8 +163,26 @@ function getRent(index: number) {
                 <p v-if="tile.amount">Amount: {{ store.currencySymbol }}{{ store.formatCurrency(tile.amount) }}</p>
             </div>
             
+            
+            <!-- Owner and Building Section -->
             <div v-if="tile.owner" class="owner-section">
                 <span>Owner: {{ owner?.name || 'Unknown' }}</span>
+                
+                <!-- Building Status -->
+                <div v-if="tile.type === 'PROPERTY' && tile.houseCount !== undefined && tile.houseCount > 0" class="building-status">
+                    <span v-if="tile.houseCount < 5">🏠 {{ tile.houseCount }} House{{ tile.houseCount > 1 ? 's' : '' }}</span>
+                    <span v-else>🏨 HOTEL</span>
+                </div>
+                
+                <!-- Build Button (only for properties you own) -->
+                <button 
+                    v-if="tile.type === 'PROPERTY' && tile.owner === store.myId && (tile.houseCount || 0) < 5"
+                    class="build-btn"
+                    @click="store.requestAction({ type: 'UPGRADE_PROPERTY', payload: tile.id, from: store.myId! })">
+                    <span v-if="!tile.houseCount || tile.houseCount < 4">🏠 Build House</span>
+                    <span v-else-if="tile.houseCount === 4">🏨 Build Hotel</span>
+                    <span class="build-cost">({{ store.currencySymbol }}{{ store.formatCurrency(tile.buildCost || Math.floor(tile.price * 0.5)) }})</span>
+                </button>
             </div>
         </div>
         
@@ -276,6 +294,50 @@ function getRent(index: number) {
     border-radius: 4px;
     font-size: 0.85rem;
     color: #fcd34d;
+}
+
+.building-status {
+    margin-top: 0.75rem;
+    padding: 0.5rem;
+    background: rgba(16, 185, 129, 0.1);
+    border-left: 3px solid #10b981;
+    border-radius: 4px;
+    font-weight: bold;
+    color: #6ee7b7;
+    font-size: 0.95rem;
+}
+
+.build-btn {
+    width: 100%;
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: linear-gradient(135deg, #10b981, #059669);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.build-btn:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.build-btn:active {
+    transform: translateY(0);
+}
+
+.build-cost {
+    opacity: 0.9;
+    font-size: 0.85rem;
 }
 
 

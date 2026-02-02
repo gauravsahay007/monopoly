@@ -19,7 +19,7 @@ const authLoading = ref(true);
 const recentRoomId = ref<string | null>(null);
 
 const colors = [
-    '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#64748b'
+    '#b84c4c', '#c87a3a', '#c4a24a', '#4f9a6a', '#4a6fb3', '#7a6fd6', '#b56db8', '#5fa7c6'
 ];
 
 const rules = ref({
