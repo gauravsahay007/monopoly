@@ -248,20 +248,20 @@ export const useGameStore = defineStore('game', () => {
 
         // JAIL LOGIC - Turn ends after ANY jail interaction
         if (player.inJail) {
-            const isDouble = d1 === d2;
+            // Updated Logic: "Remove Roll for Doubles"
+            // Doubles do NOT release player. Player waits max 2 turns then exits free.
+            player.jailTurns++;
+            log(`${player.name} stays in jail. Attempt ${player.jailTurns}/2.`);
 
-            if (isDouble) {
-                // SCENARIO 1A: Double rolled - immediate release
-                log(`${player.name} rolled Doubles (${d1}-${d2})! Free from Jail!`);
+            if (player.jailTurns >= 2) {
+                log(`${player.name} served max jail time (2 turns). Released for FREE.`);
                 player.inJail = false;
                 player.jailTurns = 0;
-                gameState.value.consecutiveDoubles = 0;
+                playSound('cash'); // Positive sound for release
 
-                // Move and resolve landing
-                const steps = d1 + d2;
-                const sentToJail = movePlayer(player, steps);
+                log(`${player.name} moves ${d1 + d2}.`);
+                const sentToJail = movePlayer(player, d1 + d2);
 
-                // Turn ENDS immediately (no extra roll for doubles in jail)
                 if (sentToJail) {
                     nextTurn();
                     broadcast();
@@ -271,41 +271,14 @@ export const useGameStore = defineStore('game', () => {
                 broadcast();
                 return;
             } else {
-                // SCENARIO 1B: Not a double
-                player.jailTurns++;
-                log(`${player.name} failed double roll. Attempt ${player.jailTurns}/2.`);
+                // Stay in jail - NO MOVEMENT
+                log(`${player.name} remains in jail.`);
+                gameState.value.consecutiveDoubles = 0;
 
-                // SCENARIO 2: Forced exit after 2 failed attempts (on 3rd turn)
-                // User requirement: "after 2 times no fine will be taken... and he has to roll"
-                if (player.jailTurns >= 2) {
-                    log(`${player.name} served max jail time (2 turns). Released for FREE.`);
-                    // player.cash -= fine; // Removed per request
-                    player.inJail = false;
-                    player.jailTurns = 0;
-                    playSound('cash'); // Positive sound for release
-
-                    log(`${player.name} moves ${d1 + d2}.`);
-                    const sentToJail = movePlayer(player, d1 + d2);
-
-                    // Turn ENDS after forced exit
-                    if (sentToJail) {
-                        nextTurn();
-                        broadcast();
-                        return;
-                    }
-                    nextTurn();
-                    broadcast();
-                    return;
-                } else {
-                    // Stay in jail - NO MOVEMENT
-                    log(`${player.name} remains in jail.`);
-                    gameState.value.consecutiveDoubles = 0;
-
-                    // Turn ENDS automatically
-                    nextTurn();
-                    broadcast();
-                    return;
-                }
+                // Turn ENDS automatically
+                nextTurn();
+                broadcast();
+                return;
             }
         }
 

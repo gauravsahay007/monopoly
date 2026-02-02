@@ -68,11 +68,12 @@ const jailFine = computed(() => isIndian.value ? 50000 : 50);
               <button @click="payFine" class="btn-warning" :disabled="isRolling || (store.me?.cash || 0) < jailFine">
                   Pay {{ store.currencySymbol }}{{ store.formatCurrency(jailFine) }} (Exit Now)
               </button>
-              <button @click="roll" class="btn-roll" :disabled="isRolling">
-                  🎲 Roll for Doubles
+              
+              <button v-if="(store.me?.cash || 0) < jailFine" @click="roll" class="btn-secondary" :disabled="isRolling">
+                  Wait in Jail (Cannot Afford)
               </button>
           </div>
-          <p class="jail-hint">Attempt {{ store.me.jailTurns }}/2 - Roll doubles to escape (Free exit after 2 fails)</p>
+          <p class="jail-hint">Attempt {{ store.me.jailTurns }}/2 - Rolling waits a turn (Free exit after 2 fails)</p>
       </div>
       
       <div v-else class="turn-controls">
@@ -222,6 +223,15 @@ const jailFine = computed(() => isIndian.value ? 50000 : 50);
     text-align: center; 
 }
 .btn-warning { background: #f59e0b; color: #fff; padding: 10px 20px; font-weight: bold; border-radius: 6px; }
+.btn-secondary {
+    background: #475569;
+    color: white;
+    padding: 10px 20px;
+    font-weight: bold;
+    border-radius: 6px;
+    border: 1px solid #64748b;
+}
+.btn-secondary:disabled { opacity: 0.5; }
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
