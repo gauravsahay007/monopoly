@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useGameStore } from '../store/gameStore';
+import Dice3D from './Dice3D.vue';
 
 const store = useGameStore();
 
@@ -58,40 +59,20 @@ const jailFine = computed(() => isIndian.value ? 50000 : 50);
 
 <template>
   <div class="dice-container">
-    <div class="dice-wrapper">
-        <div class="die" :class="[`face-${dice1}`, { rolling: isRolling }]">
-            <template v-if="dice1 === 1"><span class="pip center"></span></template>
-            <template v-else-if="dice1 === 2"><span class="pip tl"></span><span class="pip br"></span></template>
-            <template v-else-if="dice1 === 3"><span class="pip tl"></span><span class="pip center"></span><span class="pip br"></span></template>
-            <template v-else-if="dice1 === 4"><span class="pip tl"></span><span class="pip tr"></span><span class="pip bl"></span><span class="pip br"></span></template>
-            <template v-else-if="dice1 === 5"><span class="pip tl"></span><span class="pip tr"></span><span class="pip center"></span><span class="pip bl"></span><span class="pip br"></span></template>
-            <template v-else-if="dice1 === 6"><span class="pip tl"></span><span class="pip tr"></span><span class="pip ml"></span><span class="pip mr"></span><span class="pip bl"></span><span class="pip br"></span></template>
-            <template v-else><span class="question">?</span></template>
-        </div>
-        
-        <div class="die" :class="[`face-${dice2}`, { rolling: isRolling }]" style="animation-duration: 0.8s">
-            <template v-if="dice2 === 1"><span class="pip center"></span></template>
-            <template v-else-if="dice2 === 2"><span class="pip tl"></span><span class="pip br"></span></template>
-            <template v-else-if="dice2 === 3"><span class="pip tl"></span><span class="pip center"></span><span class="pip br"></span></template>
-            <template v-else-if="dice2 === 4"><span class="pip tl"></span><span class="pip tr"></span><span class="pip bl"></span><span class="pip br"></span></template>
-            <template v-else-if="dice2 === 5"><span class="pip tl"></span><span class="pip tr"></span><span class="pip center"></span><span class="pip bl"></span><span class="pip br"></span></template>
-            <template v-else-if="dice2 === 6"><span class="pip tl"></span><span class="pip tr"></span><span class="pip ml"></span><span class="pip mr"></span><span class="pip bl"></span><span class="pip br"></span></template>
-            <template v-else><span class="question">?</span></template>
-        </div>
-     </div>
+    <Dice3D :diceMain="dice1" :diceSec="dice2" :isRolling="isRolling" />
 
     <div class="actions" v-if="store.isMyTurn">
       <div v-if="store.me?.inJail" class="jail-actions">
           <h3>You are in Jail!</h3>
           <div class="jail-opt">
+              <button @click="payFine" class="btn-warning" :disabled="isRolling || (store.me?.cash || 0) < jailFine">
+                  Pay {{ store.currencySymbol }}{{ store.formatCurrency(jailFine) }} (Exit Now)
+              </button>
               <button @click="roll" class="btn-roll" :disabled="isRolling">
                   🎲 Roll for Doubles
               </button>
-              <button @click="payFine" class="btn-warning" :disabled="isRolling || (store.me?.cash || 0) < jailFine">
-                  Pay {{ store.currencySymbol }}{{ store.formatCurrency(jailFine) }}
-              </button>
           </div>
-          <p class="jail-hint">Attempt {{ store.me.jailTurns }}/3 - Roll doubles to escape or pay fine</p>
+          <p class="jail-hint">Attempt {{ store.me.jailTurns }}/2 - Roll doubles to escape (Free exit after 2 fails)</p>
       </div>
       
       <div v-else class="turn-controls">

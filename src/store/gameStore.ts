@@ -8,8 +8,6 @@ import treasureData from '../data/treasure.json';
 import surpriseData from '../data/surprise.json';
 import { broadcastState, sendAction, clearGameData } from '../multiplayer/peer';
 import { playSound } from '../logic/sound';
-import { createAvatar } from '@dicebear/core';
-import { lorelei } from '@dicebear/collection';
 import { db } from '../firebase';
 import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 
@@ -91,13 +89,16 @@ export const useGameStore = defineStore('game', () => {
 
         if (existingIdx === -1) {
             // NEW PLAYER
-            // Handle Duplicate Names
+            // Duplicate Name - ALLOWED per user request
+            // Logic removed to allow same names
+            /*
             let originalName = player.name;
             let suffix = 2;
             while (gameState.value.players.some(p => p.name === player.name)) {
                 player.name = `${originalName} (${suffix})`;
                 suffix++;
             }
+            */
 
             // Ensure Unique Color
             const usedColors = gameState.value.players.map(p => p.color);
@@ -113,15 +114,7 @@ export const useGameStore = defineStore('game', () => {
                 }
             }
 
-            // Generate Avatar if missing or default
-            if (!player.avatar || player.avatar === '👤' || player.avatar.length < 5) {
-                const avatar = createAvatar(lorelei, {
-                    seed: player.name + player.id,
-                    backgroundColor: ['b6e3f4', 'c0aede', 'd1d4f9', 'ffdfbf', 'ffd5dc'],
-                    radius: 50
-                });
-                player.avatar = avatar.toString();
-            }
+            // No avatar generation - will use color or Google photo instead
 
             // OVERRIDE payload cash with Host's current settings to ensure fairness
             player.cash = gameState.value.settings.startingCash;
@@ -154,6 +147,11 @@ export const useGameStore = defineStore('game', () => {
 
     function startGame() {
         if (!isHost.value) return;
+
+        if (gameState.value.players.length < 2) {
+            notify("Need at least 2 players to start!", "error");
+            return;
+        }
 
         // Load Selected Map
         const mapType = gameState.value.settings.mapSelection || 'world';
@@ -275,22 +273,18 @@ export const useGameStore = defineStore('game', () => {
             } else {
                 // SCENARIO 1B: Not a double
                 player.jailTurns++;
-                log(`${player.name} failed double roll. Attempt ${player.jailTurns}/3.`);
+                log(`${player.name} failed double roll. Attempt ${player.jailTurns}/2.`);
 
-                // SCENARIO 2: Forced exit on 3rd failed attempt
-                if (player.jailTurns >= 3) {
-                    const map = gameState.value.settings.mapSelection;
-                    // Adjusted Fine for India Map Scale (50k was too low)
-                    const fine = (map === 'india' || map === 'bangalore') ? 500000 : 50;
-
-                    log(`${player.name} failed 3 times. Must pay ${formatCurrency(fine)}.`);
-                    player.cash -= fine;
-                    gameState.value.vacationPot += fine;
+                // SCENARIO 2: Forced exit after 2 failed attempts (on 3rd turn)
+                // User requirement: "after 2 times no fine will be taken... and he has to roll"
+                if (player.jailTurns >= 2) {
+                    log(`${player.name} served max jail time (2 turns). Released for FREE.`);
+                    // player.cash -= fine; // Removed per request
                     player.inJail = false;
                     player.jailTurns = 0;
-                    playSound('cash');
+                    playSound('cash'); // Positive sound for release
 
-                    log(`${player.name} paid fine and moves ${d1 + d2}.`);
+                    log(`${player.name} moves ${d1 + d2}.`);
                     const sentToJail = movePlayer(player, d1 + d2);
 
                     // Turn ENDS after forced exit
@@ -603,7 +597,19 @@ export const useGameStore = defineStore('game', () => {
             return currencySymbol.value + formatCurrency(parseInt(amount));
         }).replace(/\$/g, currencySymbol.value);
 
-        gameState.value.lastActionLog.unshift(formattedMsg);
+        // Identify involved players mentioned in the message
+        const involvedPlayers: string[] = [];
+        gameState.value.players.forEach(p => {
+            // Check if player name is in message (simple check)
+            if (formattedMsg.includes(p.name)) {
+                involvedPlayers.push(p.id);
+            }
+        });
+
+        gameState.value.lastActionLog.unshift({
+            message: formattedMsg,
+            involvedPlayers
+        });
         if (gameState.value.lastActionLog.length > 50) gameState.value.lastActionLog.pop();
     }
 
@@ -887,6 +893,7 @@ export const useGameStore = defineStore('game', () => {
         notifications,
         currencySymbol,
         formatCurrency,
-        closeGame // Exposed for PlayerPanel/Board
+        closeGame,
+        resetState
     };
 });

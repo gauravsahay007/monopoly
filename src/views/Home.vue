@@ -104,6 +104,7 @@ async function createGame(resume = false) {
 
   if (!resume) {
       await store.deleteOldGame(storageKey);
+      store.resetState(); // Force fresh state
   }
   
   initializeHost(actualPeerId);
@@ -183,7 +184,10 @@ async function rejoinGame() {
       </div>
 
       <div class="user-info" v-if="store.user">
-        <div class="avatar-circle">👤</div>
+        <div class="avatar-circle-dynamic" :style="{ backgroundColor: selectedColor }">
+            <img v-if="store.user.photoURL" :src="store.user.photoURL" class="avatar-img-home" />
+            <span v-else class="initials-home">{{ (name || 'P').charAt(0).toUpperCase() }}</span>
+        </div>
         <div>
           <p class="username">{{ store.user.displayName || store.user.email }}</p>
           <p class="user-email">{{ store.user.email }}</p>
@@ -626,8 +630,20 @@ async function rejoinGame() {
   display: inline-block;
 }
 
+
 .link-btn:hover {
   background: rgba(255,255,255,0.1);
   color: white;
 }
+
+.avatar-circle-dynamic {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex; justify-content: center; align-items: center;
+  border: 2px solid rgba(255,255,255,0.2);
+  flex-shrink: 0;
+}
+.avatar-img-home { width: 100%; height: 100%; object-fit: cover; }
+.initials-home { font-size: 1.2rem; font-weight: bold; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
 </style>

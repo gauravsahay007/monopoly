@@ -159,10 +159,9 @@ function cancelTrade() {
                 :style="{ borderLeft: `4px solid ${t.color}` }"
                 @click="selectTarget(t.id)"
              >
-                <div class="avatar-container">
-                     <img v-if="t.avatar?.startsWith('data:')" :src="t.avatar" class="avatar-img" />
-                     <div v-else-if="t.avatar?.includes('<svg')" v-html="t.avatar" class="avatar-svg"></div>
-                     <span v-else class="emoji">{{ t.avatar || '👤' }}</span>
+                <div class="avatar-container" :style="{ backgroundColor: t.color, display: 'flex', justifyContent: 'center', alignItems: 'center' }">
+                     <img v-if="t.avatar?.startsWith('http')" :src="t.avatar" class="avatar-img" />
+                     <span v-else style="color: white; font-weight: bold;">{{ t.name.charAt(0).toUpperCase() }}</span>
                 </div>
                 <span class="t-name">{{ t.name }}</span>
              </button>

@@ -4,9 +4,8 @@ import TradeModal from './TradeModal.vue';
 import { ref, computed } from 'vue';
 
 const store = useGameStore();
-const showCreateTrade = ref(false); // Renamed for clarity
+const showCreateTrade = ref(false); 
 const showTradeDetails = ref(false);
-// const confirmBankrupt = ref(false); // Removed in favor of stable toggle
 const showBankruptConfirm = ref(false);
 
 function getOwnedProperties(playerId: string) {
@@ -24,7 +23,6 @@ function closeRoom() {
     }
 }
 
-// Placeholder for Votekick
 function votekick() {
     store.notify("Votekick functionality coming soon!", "info");
 }
@@ -36,6 +34,18 @@ const myProps = computed(() => {
 
 function getPlayer(id: string) {
     return store.gameState.players.find(p => p.id === id);
+}
+
+
+function getUserPhoto(p: any) {
+    if (p.avatar && p.avatar.startsWith('http')) return p.avatar;
+    if (store.user && store.user.uid === p.uid && store.user.photoURL) return store.user.photoURL;
+    return null;
+}
+
+function getInitials(name: string) {
+    if (!name) return '??';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 </script>
 
@@ -55,9 +65,8 @@ function getPlayer(id: string) {
           :class="{ active: store.currentPlayer?.id === p.id }"
         >
           <div class="p-avatar" :style="{ backgroundColor: p.color }">
-             <img v-if="p.avatar?.startsWith('data:')" :src="p.avatar" class="avatar-img" />
-             <div v-else-if="p.avatar?.includes('<svg')" v-html="p.avatar" class="avatar-svg"></div>
-             <span v-else class="emoji">{{ p.avatar || '👤' }}</span>
+             <img v-if="getUserPhoto(p)" :src="getUserPhoto(p)" class="avatar-img" />
+             <span v-else class="avatar-initials">{{ getInitials(p.name) }}</span>
           </div>
           <div class="p-info">
              <div class="p-name">
@@ -107,15 +116,11 @@ function getPlayer(id: string) {
         <div v-else class="active-trade-card clickable" @click="showTradeDetails = true">
             <div class="trade-row">
                  <div class="t-avatar" :style="{ backgroundColor: getPlayer(store.gameState.currentTrade.initiator)?.color }">
-                     <img v-if="getPlayer(store.gameState.currentTrade.initiator)?.avatar?.startsWith('data:')" :src="getPlayer(store.gameState.currentTrade.initiator)?.avatar" class="avatar-img" />
-                     <div v-else-if="getPlayer(store.gameState.currentTrade.initiator)?.avatar?.includes('<svg')" v-html="getPlayer(store.gameState.currentTrade.initiator)?.avatar" class="avatar-svg"></div>
-                     <span v-else>{{ getPlayer(store.gameState.currentTrade.initiator)?.avatar || '👤' }}</span>
+                     <span class="avatar-initials-small">{{ getInitials(getPlayer(store.gameState.currentTrade.initiator)?.name || '') }}</span>
                  </div>
                  <div class="exchange-icon">⇄</div>
                  <div class="t-avatar" :style="{ backgroundColor: getPlayer(store.gameState.currentTrade.target)?.color }">
-                     <img v-if="getPlayer(store.gameState.currentTrade.target)?.avatar?.startsWith('data:')" :src="getPlayer(store.gameState.currentTrade.target)?.avatar" class="avatar-img" />
-                     <div v-else-if="getPlayer(store.gameState.currentTrade.target)?.avatar?.includes('<svg')" v-html="getPlayer(store.gameState.currentTrade.target)?.avatar" class="avatar-svg"></div>
-                     <span v-else>{{ getPlayer(store.gameState.currentTrade.target)?.avatar || '👤' }}</span>
+                    <span class="avatar-initials-small">{{ getInitials(getPlayer(store.gameState.currentTrade.target)?.name || '') }}</span>
                  </div>
             </div>
             
@@ -156,7 +161,6 @@ function getPlayer(id: string) {
     <!-- Modals -->
     <TradeModal v-if="showCreateTrade" @close="showCreateTrade = false" />
     
-    <!-- Reuse TradeModal for Viewing/Resolving -->
     <TradeModal 
         v-if="showTradeDetails && store.gameState.currentTrade" 
         :viewTrade="store.gameState.currentTrade"
@@ -167,8 +171,8 @@ function getPlayer(id: string) {
 
 <style scoped>
 .panel {
-  width: 300px;
-  background: #1a1b26; /* Dark purple/gray */
+  width: 360px;
+  background: #1a1b26; 
   border-left: 1px solid #2e3040;
   padding: 1.5rem;
   display: flex;
@@ -177,6 +181,7 @@ function getPlayer(id: string) {
   color: #a9aeb8;
   font-family: 'Barlow', sans-serif;
   height: 100vh;
+  overflow-y: auto; /* Fix scroll */
 }
 
 .section-title {
@@ -224,6 +229,21 @@ function getPlayer(id: string) {
     align-items: center;
     font-size: 1.2rem;
     border: 2px solid rgba(255,255,255,0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.avatar-initials {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.avatar-initials-small {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: white;
 }
 
 .p-info {
@@ -263,7 +283,7 @@ function getPlayer(id: string) {
     display: flex;
     justify-content: space-between;
     gap: 10px;
-    height: 40px; /* Fixed height for row */
+    height: 40px; 
 }
 
 .btn-vote, .btn-bankrupt, .btn-close-room {
@@ -279,7 +299,7 @@ function getPlayer(id: string) {
 }
 
 .btn-vote {
-    background: rgba(255,255,255,0.05); /* Dark layout button */
+    background: rgba(255,255,255,0.05);
     color: #7aa2f7;
     border: 1px solid rgba(122, 162, 247, 0.2);
 }
@@ -334,7 +354,7 @@ function getPlayer(id: string) {
 .trades-section {
     background: #24283b;
     border-radius: 12px;
-    padding: 2px; /* Border look if needed */
+    padding: 2px;
     overflow: hidden;
 }
 
@@ -368,20 +388,6 @@ function getPlayer(id: string) {
     color: #565f89;
 }
 
-.active-trade-indicator {
-    padding: 15px;
-    text-align: center;
-    color: #7aa2f7;
-    font-size: 0.9rem;
-    animation: flash 2s infinite;
-}
-
-@keyframes flash {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}
-
-/* My Properties List */
 .my-props-list {
     display: flex;
     flex-direction: column;
@@ -420,7 +426,6 @@ function getPlayer(id: string) {
     border-color: #bb9af7;
 }
 
-/* Styles for Trade Card */
 .active-trade-card {
     background: #0f1014;
     border: 1px solid #7aa2f7;
@@ -442,6 +447,7 @@ function getPlayer(id: string) {
     border-radius: 50%;
     display: flex; justify-content: center; align-items: center;
     border: 1px solid rgba(255,255,255,0.2);
+    overflow: hidden;
 }
 
 .exchange-icon {
@@ -500,19 +506,13 @@ function getPlayer(id: string) {
     font-style: italic;
 }
 
-.avatar-img, .avatar-svg {
+.avatar-img {
     width: 100%;
     height: 100%;
     border-radius: 50%;
     object-fit: cover;
-    overflow: hidden;
-}
-.avatar-svg :deep(svg) {
-    width: 100%;
-    height: 100%;
 }
 
-/* My Properties */
 .my-props-section {
     background: #24283b;
     border-radius: 12px;
@@ -529,20 +529,6 @@ function getPlayer(id: string) {
     text-align: center;
 }
 
-.my-props-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    align-content: flex-start;
-}
-
-.mini-prop {
-    width: 20px; 
-    height: 20px;
-    border-radius: 4px;
-    border: 1px solid rgba(255,255,255,0.1);
-}
-
 .empty-props {
     width: 100%;
     text-align: center;
@@ -551,81 +537,25 @@ function getPlayer(id: string) {
     color: #414868;
 }
 
-/* Prop Colors */
-.brown { background-color: #92400e; }
-.light-blue { background-color: #0ea5e9; }
-.pink { background-color: #d946ef; }
-.orange { background-color: #f97316; }
-.red { background-color: #dc2626; }
-.yellow { background-color: #eab308; }
-.green { background-color: #16a34a; }
-.blue { background-color: #2563eb; }
-.utility { background-color: #94a3b8; }
+.prop-color-dot.brown { background-color: #92400e; }
+.prop-color-dot.light-blue { background-color: #0ea5e9; }
+.prop-color-dot.pink { background-color: #d946ef; }
+.prop-color-dot.orange { background-color: #f97316; }
+.prop-color-dot.red { background-color: #dc2626; }
+.prop-color-dot.yellow { background-color: #eab308; }
+.prop-color-dot.green { background-color: #16a34a; }
+.prop-color-dot.blue { background-color: #2563eb; }
+.prop-color-dot.utility { background-color: #94a3b8; }
 
 /* Mobile Responsive */
-@media (max-width: 768px) {
+@media (max-width: 960px) {
   .panel {
     width: 100%;
+    height: auto;
     max-height: 40vh;
-    position: relative;
     border-left: none;
     border-top: 2px solid #334155;
     overflow-y: auto;
-  }
-  
-  .section-title {
-    font-size: 0.9rem;
-  }
-  
-  .player-row {
-    padding: 0.6rem;
-  }
-  
-  .p-avatar {
-    width: 35px;
-    height: 35px;
-  }
-  
-  .p-name {
-    font-size: 0.85rem;
-  }
-  
-  .p-cash {
-    font-size: 0.75rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .panel {
-    max-height: 35vh;
-    font-size: 0.8rem;
-  }
-  
-  .section-title {
-    font-size: 0.8rem;
-    padding: 0.4rem 0.6rem;
-  }
-  
-  .player-row {
-    padding: 0.5rem;
-  }
-  
-  .p-avatar {
-    width: 30px;
-    height: 30px;
-  }
-  
-  .p-name {
-    font-size: 0.75rem;
-  }
-  
-  .p-cash {
-    font-size: 0.7rem;
-  }
-  
-  .action-row button {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.75rem;
   }
 }
 </style>

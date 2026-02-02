@@ -1,10 +1,22 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import { useGameStore } from './store/gameStore';
 import { auth } from './firebase';
 import Toast from './components/Toast.vue';
+import Header from './components/Header.vue';
 
+const route = useRoute();
 const store = useGameStore();
+
+// Hide header during gameplay
+const showHeader = computed(() => {
+  // Hide header when in a room and game is playing
+  if (route.path.startsWith('/room/')) {
+    return store.gameState.status === 'LOBBY';
+  }
+  return true;
+});
 
 onMounted(() => {
   auth.onAuthStateChanged((user) => {
@@ -20,6 +32,7 @@ onMounted(() => {
 <template>
   <div class="app-container">
     <Toast />
+    <Header v-if="showHeader" />
     <router-view v-slot="{ Component }">
       <transition name="fade" mode="out-in">
         <component :is="Component" />
@@ -31,7 +44,7 @@ onMounted(() => {
 <style scoped>
 .app-container {
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
   background: var(--bg-dark);
   color: var(--text-light);
 }

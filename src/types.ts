@@ -30,13 +30,18 @@ export interface Player {
     uid?: string; // Google User ID for persistence
 }
 
+export interface LogEntry {
+    message: string;
+    involvedPlayers: string[]; // Player IDs to show avatars
+}
+
 export interface GameState {
     status: 'LOBBY' | 'SETUP' | 'PLAYING' | 'GAME_OVER';
     turnIndex: number;
     players: Player[];
     board: Tile[];
     dice: [number, number];
-    lastActionLog: string[];
+    lastActionLog: LogEntry[];
     settings: GameSettings;
     currentRoomId: string | null;
     myId: string | null;

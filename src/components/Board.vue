@@ -58,6 +58,8 @@ function getOwner(tile: TileType | null) {
 }
 
 
+
+
 </script>
 
 <template>
@@ -71,14 +73,14 @@ function getOwner(tile: TileType | null) {
         
         <Dice />
 
-        <!-- Scrollable Event Log -->
         <div class="event-log" ref="eventLogRef">
            <div 
               v-for="(event, index) in store.gameState.lastActionLog" 
               :key="index"
               class="event-item"
            >
-              {{ event }}
+
+              <span class="event-text">{{ typeof event === 'string' ? event : event.message }}</span>
            </div>
            <div v-if="store.gameState.lastActionLog.length === 0" class="event-placeholder">
               Game events will appear here...
@@ -111,6 +113,34 @@ function getOwner(tile: TileType | null) {
 </template>
 
 <style scoped>
+/* New styles for Event Avatars */
+.event-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.event-avatars {
+    display: flex;
+    align-items: center;
+    gap: 4px; /* Space between avatars */
+    flex-shrink: 0;
+}
+.mini-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    background-color: #333;
+}
+.mini-img { width: 100%; height: 100%; object-fit: cover; }
+.mini-initial { font-size: 0.8rem; color: white; font-weight: bold; }
+.event-text { flex: 1; font-size: 0.95rem; line-height: 1.4; }
+
 .board-container {
   display: flex;
   justify-content: center;
