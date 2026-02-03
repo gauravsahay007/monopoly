@@ -116,7 +116,7 @@ function getInitials(name: string) {
     <div class="trades-section">
         <div class="section-header">
             <span>Trades</span>
-            <button class="btn-create" @click="showCreateTrade = true" :disabled="store.me?.inJail || !store.isMyTurn || !!store.gameState.currentTrade">
+            <button class="btn-create" @click="showCreateTrade = true" :disabled="!!store.gameState.currentTrade">
                ➕ Create
             </button>
         </div>
@@ -141,12 +141,12 @@ function getInitials(name: string) {
             </div>
 
             <!-- Inline Actions Bar (Quick Actions) -->
-            <div class="trade-actions-bar" v-if="store.myId" @click.stop>
-                 <template v-if="store.myId === store.gameState.currentTrade.target">
+            <div class="trade-actions-bar" @click.stop>
+                 <template v-if="store.gameState.currentTrade && store.myId === store.gameState.currentTrade.target">
                     <button class="btn-mini-success" @click="store.requestAction({ type: 'ACCEPT_TRADE', payload: store.gameState.currentTrade.id, from: store.myId })">✔ Accept</button>
                     <button class="btn-mini-danger" @click="store.requestAction({ type: 'REJECT_TRADE', payload: store.gameState.currentTrade.id, from: store.myId })">✖ Reject</button>
                  </template>
-                 <template v-else-if="store.myId === store.gameState.currentTrade.initiator">
+                 <template v-else-if="store.gameState.currentTrade && store.myId === store.gameState.currentTrade.initiator">
                     <button class="btn-mini-warn" @click="store.requestAction({ type: 'CANCEL_TRADE', payload: store.gameState.currentTrade.id, from: store.myId })">🚫 Cancel</button>
                  </template>
                  <div v-else class="pending-badge">Pending Response...</div>

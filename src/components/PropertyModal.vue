@@ -181,7 +181,17 @@ function getRent(index: number) {
                     @click="store.requestAction({ type: 'UPGRADE_PROPERTY', payload: tile.id, from: store.myId! })">
                     <span v-if="!tile.houseCount || tile.houseCount < 4">🏠 Build House</span>
                     <span v-else-if="tile.houseCount === 4">🏨 Build Hotel</span>
-                    <span class="build-cost">({{ store.currencySymbol }}{{ store.formatCurrency(tile.buildCost || Math.floor(tile.price * 0.5)) }})</span>
+                    <span class="build-cost">(-{{ store.currencySymbol }}{{ store.formatCurrency(tile.buildCost || Math.floor(tile.price * 0.5)) }})</span>
+                </button>
+
+                <!-- Sell Button -->
+                <button 
+                    v-if="tile.type === 'PROPERTY' && tile.owner === store.myId && (tile.houseCount || 0) > 0"
+                    class="sell-btn"
+                    @click="store.requestAction({ type: 'DOWNGRADE_PROPERTY', payload: tile.id, from: store.myId! })">
+                    <span v-if="tile.houseCount === 5">🏨 Sell Hotel</span>
+                    <span v-else>🏚️ Sell House</span>
+                    <span class="sell-val">(+{{ store.currencySymbol }}{{ store.formatCurrency(Math.floor((tile.buildCost || Math.floor(tile.price * 0.5)) * 0.5)) }})</span>
                 </button>
             </div>
         </div>
@@ -335,9 +345,43 @@ function getRent(index: number) {
     transform: translateY(0);
 }
 
+.sell-btn {
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.6rem;
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.sell-btn:hover {
+    background: linear-gradient(135deg, #dc2626, #991b1b);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.sell-btn:active {
+    transform: translateY(0);
+}
+
 .build-cost {
     opacity: 0.9;
     font-size: 0.85rem;
+}
+
+.sell-val {
+    opacity: 0.9;
+    font-size: 0.85rem;
+    font-weight: normal;
 }
 
 

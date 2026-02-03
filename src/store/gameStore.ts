@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type { GameState, Player, Tile, GameAction, TradeOffer } from '../types';
 import boardDataWorld from '../data/board.json';
 import boardDataIndia from '../data/board-india.json';
@@ -49,10 +49,13 @@ export const useGameStore = defineStore('game', () => {
     function formatCurrency(amount: number) {
         const map = gameState.value.settings.mapSelection;
         if (map === 'india' || map === 'bangalore') {
+            const abs = Math.abs(amount);
+            const prefix = amount < 0 ? '-' : '';
+
             // Show more decimal places for large numbers to reflect small changes
-            if (amount >= 10000000) return (amount / 10000000).toLocaleString('en-IN', { maximumFractionDigits: 4 }) + 'Cr';
-            if (amount >= 100000) return (amount / 100000).toLocaleString('en-IN', { maximumFractionDigits: 2 }) + 'L';
-            if (amount >= 1000) return (amount / 1000).toLocaleString('en-IN') + 'k';
+            if (abs >= 10000000) return prefix + (abs / 10000000).toLocaleString('en-IN', { maximumFractionDigits: 4 }) + 'Cr';
+            if (abs >= 100000) return prefix + (abs / 100000).toLocaleString('en-IN', { maximumFractionDigits: 2 }) + 'L';
+            if (abs >= 1000) return prefix + (abs / 1000).toLocaleString('en-IN') + 'k';
             return amount.toString();
         }
         return amount.toLocaleString();
@@ -73,27 +76,68 @@ export const useGameStore = defineStore('game', () => {
     // LOCAL sound mute preference (not synced - each player controls their own)
     const localSoundMuted = ref(false);
 
+    // Load sound preference from localStorage immediately
+    const initSoundPreference = () => {
+        try {
+            const saved = localStorage.getItem('monopoly_soundMuted');
+            if (saved === 'true') {
+                localSoundMuted.value = true;
+                console.log('🔇 Sound preference loaded: MUTED');
+            } else {
+                console.log('🔊 Sound preference loaded: ON');
+            }
+        } catch (e) {
+            console.warn('Failed to load sound preference', e);
+        }
+    };
 
-    // Wrapper to pass mute setting to playSound
-    function playSoundWithSettings(type: 'roll' | 'buy' | 'cash' | 'fail' | 'win' | 'turn' | 'bankrupt' | 'hotel' | 'fine' | 'tax' | 'deal' | 'house' | 'vacation') {
-        const isMuted = localSoundMuted.value;
-        playSound(type, isMuted);
+    // Initialize immediately
+    initSoundPreference();
+
+    // Wrapper to trigger sound (updates state so peers play it too)
+    function playSoundWithSettings(type: 'roll' | 'buy' | 'cash' | 'fail' | 'win' | 'turn' | 'bankrupt' | 'hotel' | 'fine' | 'tax' | 'deal' | 'house' | 'vacation' | 'negativeMoney') {
+        // We set a random ID to ensure change detection even for same sound type
+        gameState.value.lastSound = { type, id: Date.now() + Math.random() };
     }
+
+    // Watch for sound events from state (Host or Peer)
+    watch(() => gameState.value.lastSound, (newSound) => {
+        if (newSound && newSound.type) {
+            playSound(newSound.type as any, localSoundMuted.value);
+        }
+    });
 
     // Function to toggle sound mute (works for any player, not just host)
     function toggleSoundMute() {
         localSoundMuted.value = !localSoundMuted.value;
+        console.log(`🎵 Sound ${localSoundMuted.value ? 'MUTED' : 'UNMUTED'}`);
         // Save preference to localStorage for persistence
         try {
             localStorage.setItem('monopoly_soundMuted', String(localSoundMuted.value));
-        } catch (e) { /* ignore if storage unavailable */ }
+        } catch (e) {
+            console.warn('Failed to save sound preference', e);
+        }
     }
 
-    // Load sound preference from localStorage on init
-    try {
-        const saved = localStorage.getItem('monopoly_soundMuted');
-        if (saved === 'true') localSoundMuted.value = true;
-    } catch (e) { /* ignore */ }
+    // Track which players have negative cash (computed reactively)
+    const playersWithNegativeCash = computed(() => {
+        return gameState.value.players
+            .filter(p => p.cash < 0)
+            .map(p => p.id);
+    });
+
+    // Watch for new players going negative and play sound
+    watch(playersWithNegativeCash, (newNegative, oldNegative = []) => {
+        if (!isHost.value) return; // Only host triggers the sound event to avoid duplicates
+
+        // Find players who just went negative (in new list but not in old list)
+        const justWentNegative = newNegative.filter(id => !oldNegative.includes(id));
+
+        if (justWentNegative.length > 0) {
+            console.log('💸 Player(s) went negative:', justWentNegative);
+            playSoundWithSettings('negativeMoney');
+        }
+    });
 
 
     // --- HOST ONLY LOGIC ---
@@ -272,41 +316,8 @@ export const useGameStore = defineStore('game', () => {
         const player = gameState.value.players[gameState.value.turnIndex];
         if (!player) return;
 
-        // JAIL LOGIC - Turn ends after ANY jail interaction
-        if (player.inJail) {
-            // Updated Logic: "Remove Roll for Doubles"
-            // Doubles do NOT release player. Player waits max 2 turns then exits free.
-            player.jailTurns++;
-            log(`${player.name} stays in jail. Attempt ${player.jailTurns}/2.`);
-
-            if (player.jailTurns >= 2) {
-                log(`${player.name} served max jail time (2 turns). Released for FREE.`);
-                player.inJail = false;
-                player.jailTurns = 0;
-                playSoundWithSettings('cash'); // Positive sound for release
-
-                log(`${player.name} moves ${d1 + d2}.`);
-                const sentToJail = movePlayer(player, d1 + d2);
-
-                if (sentToJail) {
-                    nextTurn();
-                    broadcast();
-                    return;
-                }
-                nextTurn();
-                broadcast();
-                return;
-            } else {
-                // Stay in jail - NO MOVEMENT
-                log(`${player.name} remains in jail.`);
-                gameState.value.consecutiveDoubles = 0;
-
-                // Turn ENDS automatically
-                nextTurn();
-                broadcast();
-                return;
-            }
-        }
+        // JAIL LOGIC - Should not be reached via UI
+        if (player.inJail) return;
 
         // NORMAL LOGIC (Not in Jail)
         if (d1 === d2) {
@@ -359,28 +370,24 @@ export const useGameStore = defineStore('game', () => {
         // Adjusted Fine for India Map Scale
         const fine = (map === 'india' || map === 'bangalore') ? 500000 : 50;
 
-        // SCENARIO 3: Pay fine
-        if (player.cash >= fine) {
-            player.cash -= fine;
-            gameState.value.vacationPot += fine;
-            player.inJail = false;
-            player.jailTurns = 0;
-            log(`${player.name} paid ${formatCurrency(fine)} fine.`);
-            playSoundWithSettings('fine');
+        // Allow paying fine even if negative cash (Take Debt)
+        player.cash -= fine;
+        gameState.value.vacationPot += fine;
+        player.inJail = false;
+        player.jailTurns = 0;
+        log(`${player.name} paid ${formatCurrency(fine)} fine.`);
+        playSoundWithSettings('fine');
 
-            // Auto-roll dice and move
-            const d1 = Math.ceil(Math.random() * 6);
-            const d2 = Math.ceil(Math.random() * 6);
-            gameState.value.dice = [d1, d2];
+        // Auto-roll dice and move
+        const d1 = Math.ceil(Math.random() * 6);
+        const d2 = Math.ceil(Math.random() * 6);
+        gameState.value.dice = [d1, d2];
 
-            log(`${player.name} rolled ${d1 + d2} (${d1}+${d2})`);
-            movePlayer(player, d1 + d2);
+        log(`${player.name} rolled ${d1 + d2} (${d1}+${d2})`);
+        movePlayer(player, d1 + d2);
 
-            // Turn ENDS (even if sent back to jail!)
-            nextTurn();
-        } else {
-            log(`${player.name} cannot afford the fine!`);
-        }
+        // Turn ENDS (even if sent back to jail!)
+        nextTurn();
         broadcast();
     }
 
@@ -487,6 +494,11 @@ export const useGameStore = defineStore('game', () => {
             if (ownerUtils === 2) multiplier = 10;
             if (ownerUtils >= 3) multiplier = 20;
             rentAmount = diceSum * multiplier;
+
+            // Scale for Indian maps (base currency ~1000x higher)
+            if (isIndian) {
+                rentAmount *= 1000;
+            }
         } else if (tile.type === 'TAX') {
             // Taxes are usually one-time landing fees handled in landOnTile
             return;
@@ -599,6 +611,50 @@ export const useGameStore = defineStore('game', () => {
             log(`${player.name} built house #${tile.houseCount} on ${tile.name}`);
             playSoundWithSettings('house');
         }
+
+        broadcast();
+    }
+
+    function downgradeProperty(playerId: string, tileIndex: number) {
+        if (!isHost.value) return;
+        const player = gameState.value.players.find(p => p.id === playerId);
+        const tile = gameState.value.board[tileIndex];
+
+        if (!player || !tile || tile.owner !== playerId || tile.type !== 'PROPERTY') return;
+
+        // Check current house count
+        const currentHouses = tile.houseCount || 0;
+
+        if (currentHouses === 0) {
+            notify("No houses to sell!", "error");
+            return;
+        }
+
+        // Calculate sell value (50% of build cost)
+        const buildCost = tile.buildCost || Math.floor((tile.price || 100) * 0.5);
+        const sellValue = Math.floor(buildCost * 0.5);
+
+        // Check if player owns all properties in the group  
+        const groupProps = gameState.value.board.filter(t => t.type === 'PROPERTY' && t.group === tile.group);
+        // Even Sell Rule: Must sell from the property with the MOST houses first
+        // If currentHouses is LESS than the max in the group, we can't sell this one yet
+        const maxHousesAnywhere = Math.max(...groupProps.map(t => t.houseCount || 0));
+
+        if (currentHouses < maxHousesAnywhere) {
+            notify("Even sell rule: Sell from the most developed property in this group first!", "error");
+            return;
+        }
+
+        // All checks passed, sell!
+        player.cash += sellValue;
+        tile.houseCount = currentHouses - 1;
+
+        if (currentHouses === 5) {
+            log(`${player.name} sold their HOTEL on ${tile.name} for ${formatCurrency(sellValue)}`);
+        } else {
+            log(`${player.name} sold a house from ${tile.name} for ${formatCurrency(sellValue)}`);
+        }
+        playSoundWithSettings('deal');
 
         broadcast();
     }
@@ -737,6 +793,9 @@ export const useGameStore = defineStore('game', () => {
 
     function offerTrade(offer: TradeOffer) {
         if (!isHost.value) return;
+
+
+
         gameState.value.currentTrade = { ...offer, status: 'PENDING' };
         log(`Trade offered by ${gameState.value.players.find(p => p.id === offer.initiator)?.name}`);
         broadcast();
@@ -751,10 +810,14 @@ export const useGameStore = defineStore('game', () => {
         const p2 = gameState.value.players.find(p => p.id === trade.target);
 
         if (p1 && p2) {
-            p1.cash -= trade.offerCash;
-            p2.cash += trade.offerCash;
-            p2.cash -= trade.requestCash;
-            p1.cash += trade.requestCash;
+            // Ensure numbers to prevent string concatenation bugs
+            const offerVal = Number(trade.offerCash);
+            const requestVal = Number(trade.requestCash);
+
+            p1.cash -= offerVal;
+            p2.cash += offerVal;
+            p2.cash -= requestVal;
+            p1.cash += requestVal;
 
             trade.offerProperties.forEach(id => {
                 const t = gameState.value.board.find(x => x.id === id);
@@ -858,6 +921,10 @@ export const useGameStore = defineStore('game', () => {
             upgradeProperty(action.from, action.payload);
             return;
         }
+        if (action.type === 'DOWNGRADE_PROPERTY') {
+            downgradeProperty(action.from, action.payload);
+            return;
+        }
 
         if (!senderIsCurrent) return;
 
@@ -872,6 +939,11 @@ export const useGameStore = defineStore('game', () => {
                 payJailFine(action.from);
                 break;
             case 'END_TURN':
+                const p = gameState.value.players.find(pl => pl.id === action.from);
+                if (p && p.cash < 0) {
+                    notify("You are in DEBT! Sell properties or Declare Bankruptcy to proceed.", "error");
+                    return;
+                }
                 nextTurn();
                 break;
         }
@@ -901,6 +973,7 @@ export const useGameStore = defineStore('game', () => {
             playSoundWithSettings('cash');
         } else if (card.action === 'SUB_CASH') {
             player.cash -= val;
+            gameState.value.vacationPot += val;
             playSoundWithSettings('fail');
         } else if (card.action === 'GO_TO_JAIL') {
             sendToJail(player);
@@ -958,6 +1031,7 @@ export const useGameStore = defineStore('game', () => {
         nextTurn,
         buyProperty,
         upgradeProperty,
+        downgradeProperty,
         declareBankruptcy,
         payJailFine,
         setIdentity,

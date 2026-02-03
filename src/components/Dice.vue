@@ -54,7 +54,7 @@ function payFine() {
    store.requestAction({ type: 'PAY_JAIL_FINE', payload: {}, from: store.myId! });
 }
 
-const jailFine = computed(() => isIndian.value ? 50000 : 50);
+const jailFine = computed(() => isIndian.value ? 500000 : 50);
 </script>
 
 <template>

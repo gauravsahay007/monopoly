@@ -78,6 +78,10 @@ const hasHotel = computed(() => {
       
       <div class="name" :class="{ small: tile.name.length > 10 }">{{ tile.name }}</div>
       
+      <div v-if="tile.type === 'VACATION' && store.gameState.vacationPot > 0" class="pot-badge">
+          💰 {{ store.formatCurrency(store.gameState.vacationPot) }}
+      </div>
+      
       <!-- Price Row with Building Indicator -->
       <div class="price-row">
         <div v-if="tile.price && tile.type !== 'START' && tile.type !== 'TAX'" class="price">
@@ -199,6 +203,19 @@ const hasHotel = computed(() => {
   color: white;
   display: flex;
   align-items: center;
+}
+
+.pot-badge {
+    background: #eab308; /* Yellow */
+    color: #000;
+    font-size: 0.65rem;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-top: 2px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    z-index: 5;
+    white-space: nowrap;
 }
 
 .owner-dot {

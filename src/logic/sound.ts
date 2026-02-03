@@ -8,6 +8,7 @@ import buyPropertyUrl from '../data/buyProperty.mp3';
 import dealUrl from '../data/deal.mp3';
 import buildHouseUrl from '../data/buildhouse.mp3';
 import vacationUrl from '../data/vacation.mp3';
+import negativeMoneyUrl from '../data/negativeMoney.mp3';
 
 const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
 
@@ -19,7 +20,8 @@ const mp3Sounds: Record<string, string> = {
     buy: buyPropertyUrl,
     deal: dealUrl,
     house: buildHouseUrl,
-    vacation: vacationUrl
+    vacation: vacationUrl,
+    negativeMoney: negativeMoneyUrl
 };
 
 // Improved audio queue system - ensures sounds play one by one
@@ -154,6 +156,13 @@ async function playSoundActual(type: string, isMuted: boolean): Promise<void> {
                 setTimeout(() => playTone(783.99, 'sine', 0.5, 0.05), 300); // G5
                 maxDuration = 800;
                 break;
+            case 'negativeMoney':
+                // Warning beeps - descending alert
+                playTone(440, 'sawtooth', 0.15, 0.1); // A4
+                setTimeout(() => playTone(370, 'sawtooth', 0.15, 0.1), 180); // F#4
+                setTimeout(() => playTone(311, 'sawtooth', 0.2, 0.12), 360); // D#4
+                maxDuration = 600;
+                break;
             default:
                 maxDuration = 0;
         }
@@ -183,7 +192,7 @@ function playTone(freq: number, type: OscillatorType, duration: number, vol: num
 }
 
 export const playSound = (
-    type: 'roll' | 'buy' | 'cash' | 'fail' | 'win' | 'turn' | 'bankrupt' | 'hotel' | 'fine' | 'tax' | 'deal' | 'house' | 'vacation',
+    type: 'roll' | 'buy' | 'cash' | 'fail' | 'win' | 'turn' | 'bankrupt' | 'hotel' | 'fine' | 'tax' | 'deal' | 'house' | 'vacation' | 'negativeMoney',
     isMuted: boolean = false
 ) => {
     console.log(`🎵 Queuing sound: ${type} (queue size: ${soundQueue.length}, processing: ${isProcessing})`);

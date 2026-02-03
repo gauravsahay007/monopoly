@@ -97,7 +97,7 @@ function multiplyRequest(factor: number) {
 // Validation
 const isValid = computed(() => {
     if (!selectedTarget.value) return false;
-    if (myCashOffer.value > (me.value?.cash || 0)) return false;
+
     const hasOffer = myCashOffer.value > 0 || mySelectedProps.value.length > 0;
     const hasRequest = targetCashRequest.value > 0 || targetSelectedProps.value.length > 0;
     return hasOffer || hasRequest;
@@ -185,7 +185,7 @@ function cancelTrade() {
                 <h3>{{ me.name }} (You)</h3>
                 <div class="cash-box">
                     <label>Cash: {{ store.currencySymbol }}{{ store.formatCurrency(me.cash) }}</label>
-                    <input type="number" v-model="myCashOffer" :max="me.cash" min="0" placeholder="Offer Cash" :disabled="isViewMode">
+                    <input type="number" v-model.number="myCashOffer" :max="me.cash" min="0" placeholder="Offer Cash" :disabled="isViewMode">
                     <div class="helpers" v-if="!isViewMode">
                         <button @click="multiplyOffer(1000)">K</button>
                         <button @click="multiplyOffer(100000)">L</button>
@@ -211,7 +211,7 @@ function cancelTrade() {
                 <h3>Target</h3>
                 
                 <div class="cash-box">
-                   <input type="number" v-model="targetCashRequest" min="0" placeholder="Request Cash" :disabled="isViewMode">
+                   <input type="number" v-model.number="targetCashRequest" min="0" placeholder="Request Cash" :disabled="isViewMode">
                    <div class="helpers" v-if="!isViewMode">
                         <button @click="multiplyRequest(1000)">K</button>
                         <button @click="multiplyRequest(100000)">L</button>
