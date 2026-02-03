@@ -40,12 +40,6 @@ const ownerColor = computed(() => {
     return p ? p.color : null;
 });
 
-const ownerName = computed(() => {
-    if (!props.tile.owner) return null;
-    const p = store.gameState.players.find(x => x.id === props.tile.owner);
-    return p ? p.name : 'Unknown'; 
-});
-
 const houseCount = computed(() => {
     return props.tile.houseCount || 0;
 });
