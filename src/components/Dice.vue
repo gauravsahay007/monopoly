@@ -64,15 +64,9 @@ const jailFine = computed(() => isIndian.value ? 500000 : 50);
     <div class="actions" v-if="store.isMyTurn">
       <div v-if="store.me?.inJail" class="jail-actions">
           <h3>You are in Jail!</h3>
-          <div class="jail-opt">
-              <button @click="payFine" class="btn-warning" :disabled="isRolling || (store.me?.cash || 0) < jailFine">
+              <button @click="payFine" class="btn-warning" :disabled="isRolling">
                   Pay {{ store.currencySymbol }}{{ store.formatCurrency(jailFine) }} (Exit Now)
               </button>
-              
-              <button v-if="(store.me?.cash || 0) < jailFine" @click="roll" class="btn-secondary" :disabled="isRolling">
-                  Wait in Jail (Cannot Afford)
-              </button>
-          </div>
       </div>
       
       <div v-else class="turn-controls">

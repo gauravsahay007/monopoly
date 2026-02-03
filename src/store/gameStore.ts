@@ -82,9 +82,9 @@ export const useGameStore = defineStore('game', () => {
             const saved = localStorage.getItem('monopoly_soundMuted');
             if (saved === 'true') {
                 localSoundMuted.value = true;
-                console.log('🔇 Sound preference loaded: MUTED');
+
             } else {
-                console.log('🔊 Sound preference loaded: ON');
+
             }
         } catch (e) {
             console.warn('Failed to load sound preference', e);
@@ -110,7 +110,7 @@ export const useGameStore = defineStore('game', () => {
     // Function to toggle sound mute (works for any player, not just host)
     function toggleSoundMute() {
         localSoundMuted.value = !localSoundMuted.value;
-        console.log(`🎵 Sound ${localSoundMuted.value ? 'MUTED' : 'UNMUTED'}`);
+
         // Save preference to localStorage for persistence
         try {
             localStorage.setItem('monopoly_soundMuted', String(localSoundMuted.value));
@@ -134,7 +134,7 @@ export const useGameStore = defineStore('game', () => {
         const justWentNegative = newNegative.filter(id => !oldNegative.includes(id));
 
         if (justWentNegative.length > 0) {
-            console.log('💸 Player(s) went negative:', justWentNegative);
+
             playSoundWithSettings('negativeMoney');
         }
     });
@@ -142,7 +142,7 @@ export const useGameStore = defineStore('game', () => {
 
     // --- HOST ONLY LOGIC ---
     function addPlayer(player: Player) {
-        console.log('🔧 addPlayer called. isHost:', isHost.value, 'Player:', player.name, 'UID:', player.uid);
+
         if (!isHost.value) {
             console.warn('⚠️ addPlayer called but not host!');
             return;
@@ -190,14 +190,14 @@ export const useGameStore = defineStore('game', () => {
             player.cash = gameState.value.settings.startingCash;
 
             gameState.value.players.push(player);
-            console.log('✨ Player added successfully:', player.name, 'Total players:', gameState.value.players.length);
+
             log(`Player ${player.name} joined`);
             broadcast();
         } else {
             // REJOINING PLAYER
             const existing = gameState.value.players[existingIdx];
             if (existing) {
-                console.log('🔄 Player rejoined (Persistent). Updating PeerID for:', player.name);
+
                 // CRITICAL: Update the Peer ID so the player receives updates on new session
                 existing.id = player.id;
 
@@ -702,7 +702,7 @@ export const useGameStore = defineStore('game', () => {
             myId: localMyId,
             currentRoomId: localRoomId
         };
-        console.log('🔄 State updated from host. My ID:', localMyId, 'Players:', newState.players.length);
+
     }
 
     function log(msg: string) {
@@ -885,9 +885,9 @@ export const useGameStore = defineStore('game', () => {
         }
 
         if (action.type === 'JOIN') {
-            console.log('👥 Processing JOIN action for:', action.payload.name, 'ID:', action.payload.id);
+
             addPlayer(action.payload);
-            console.log('✅ Current players in game:', gameState.value.players.map(p => p.name).join(', '));
+
             return;
         }
 

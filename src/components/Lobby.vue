@@ -2,7 +2,7 @@
 import { ref, onMounted, watch } from 'vue';
 import { useGameStore } from '../store/gameStore';
 import { initPeer, connectToHost, initializeHost } from '../multiplayer/peer';
-import { loginWithGoogle } from '../firebase';
+import { loginWithGoogle, onAuthChange } from '../firebase';
 
 const store = useGameStore();
 
@@ -12,7 +12,9 @@ const initialized = ref(false);
 const peerId = ref('');
 const showRules = ref(false);
 const selectedColor = ref('#ef4444');
-const authLoading = ref(true); // Track if we are waiting for firebase auth state
+const authLoading = ref(true); // Initial Auth verification
+const actionLoading = ref(false); // Action spinner (Login, Create, Join)
+
 const recentRoomId = ref<string | null>(null); // Last room from Firestore
 const recentHostUid = ref<string | null>(null); // Host UID for finding game state
 const recentWasHost = ref(false); // Whether this user was the host
@@ -45,10 +47,8 @@ watch(() => rules.value.mapSelection, (newMap) => {
 
 watch(() => store.user, async (u) => {
     if (u) {
-        console.log("Lobby: User auth settled:", u.displayName || u.email);
+
         name.value = u.displayName || u.email?.split('@')[0] || 'Player';
-        authLoading.value = false;
-        console.log("Lobby: authLoading set to false in watcher");
 
         // Fetch Recent Room meta (Non-blocking)
         getDoc(doc(db, "users", u.uid)).then(userDoc => {
@@ -57,25 +57,25 @@ watch(() => store.user, async (u) => {
                 recentRoomId.value = data.lastRoomId;
                 recentHostUid.value = data.lastHostUid || data.lastRoomId;
                 recentWasHost.value = data.wasHost || false;
-                console.log("Lobby: Found recent room:", recentRoomId.value, "Host UID:", recentHostUid.value);
+
             }
         }).catch(e => {
             console.warn("Lobby: Failed to fetch user meta (swallowed)", e);
         });
 
-        // Init Peer with UID
+        // Init Peer with UID (Safe check)
         if (!initialized.value) {
-            console.log('🔌 Attempting to initialize peer with UID:', u.uid);
+
             initPeer(u.uid, (id) => {
                 peerId.value = id;
                 initialized.value = true;
-                console.log('✅ Peer initialized successfully with ID:', id);
+
             }, (err) => {
                 console.warn("⚠️ Lobby: Peer UID init failed, fallback to random", err);
                 initPeer(undefined, (rid) => {
                     peerId.value = rid;
                     initialized.value = true;
-                    console.log('✅ Peer initialized with random ID:', rid);
+
                 });
             });
         }
@@ -84,12 +84,9 @@ watch(() => store.user, async (u) => {
     }
 }, { immediate: true });
 
-// Auto-save the current room for rejoin feature (Host and Client)
-
 watch(() => store.roomId, async (newRoom) => {
     if (newRoom && store.user) {
         try {
-            // Find the host to save their UID for more reliable rejoins
             const hostPlayer = store.gameState.players.find(p => p.isHost);
             const hostUid = hostPlayer?.uid || newRoom;
             
@@ -99,7 +96,7 @@ watch(() => store.roomId, async (newRoom) => {
                 lastAccessed: Date.now(),
                 wasHost: store.isHost
             }, { merge: true });
-            console.log("Recorded last room:", newRoom, "Host UID:", hostUid);
+
         } catch (e) {
             console.warn("Failed to save room to user profile", e);
         }
@@ -114,28 +111,42 @@ onMounted(() => {
       roomIdInput.value = rId;
   }
   
-  // Safety timeout for auth. 
-  setTimeout(() => {
-    // Force auth loading to end regardless of Peer state
-    console.log("Lobby: Safety timeout fired, clearing authLoading");
-    authLoading.value = false;
-    
-    if (!store.user && !initialized.value) {
-        initPeer(undefined, (id) => {
-            peerId.value = id;
-            initialized.value = true;
-        });
-    }
-  }, 2000);
+  // Listen for Firebase Auth Persistence
+  onAuthChange((u) => {
+
+      if (u) {
+          store.user = u;
+          name.value = u.displayName || u.email?.split('@')[0] || 'Player';
+          // User watcher will handle the rest (store.user watcher)
+      }
+      // Stop loading once we get the initial auth signal (null or user)
+      authLoading.value = false;
+
+      // Fallback Peer Init if not logged in
+      if (!u && !initialized.value) {
+           initPeer(undefined, (id) => {
+                peerId.value = id;
+                initialized.value = true;
+           });
+      }
+  });
+
+  /* Removed fixed timeout as onAuthChange handles it. 
+     Keeping a long failsafe just in case. */
+  setTimeout(() => { if(authLoading.value) authLoading.value = false; }, 5000);
 });
 
 async function handleGoogleLogin() {
+    if (actionLoading.value) return;
+    actionLoading.value = true;
     try {
         const u = await loginWithGoogle();
         store.user = u;
         name.value = u.displayName || '';
     } catch (e) {
         store.notify("Login failed", "error");
+    } finally {
+        actionLoading.value = false;
     }
 }
 
@@ -157,8 +168,6 @@ async function createGame(resume = false) {
   // This ensures guests connect to the peer we're actually listening on
   const actualPeerId = peerId.value;
   const storageKey = store.user?.uid || actualPeerId;
-
-  console.log('🎮 Creating game with Peer ID:', actualPeerId, 'Storage Key:', storageKey);
 
   if (!resume) {
       // Delete previous game session if starting fresh
@@ -192,8 +201,6 @@ async function createGame(resume = false) {
       });
       if (!resume) store.notify("New game created!", "success");
   }
-  
-  console.log('✅ Game created. Room ID:', store.roomId, 'Players:', store.gameState.players.length);
 }
 
 function joinGame() {
@@ -222,7 +229,7 @@ function joinGame() {
 }
 
 function startGame() {
-  console.log("Start Game clicked, PeerID:", peerId.value);
+
   store.requestAction({
     type: 'START_GAME',
     payload: {},
@@ -355,10 +362,16 @@ async function rejoinRecent() {
       </div>
       
       <div class="actions" v-if="store.user">
-        <button @click="createGame()" class="btn-primary">Create Private Game</button>
+        <button @click="createGame()" class="btn-primary" :disabled="actionLoading">
+            <span v-if="actionLoading">⏳ Processing...</span>
+            <span v-else>Create Private Game</span>
+        </button>
         <div class="join-area">
-          <input v-model="roomIdInput" placeholder="Room Code" />
-          <button @click="joinGame" class="btn-secondary">Join</button>
+          <input v-model="roomIdInput" placeholder="Room Code" :disabled="actionLoading" />
+          <button @click="joinGame" class="btn-secondary" :disabled="actionLoading">
+             <span v-if="actionLoading">⏳</span>
+             <span v-else>Join</span>
+          </button>
         </div>
       </div>
     </div>

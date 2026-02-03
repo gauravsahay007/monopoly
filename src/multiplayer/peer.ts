@@ -7,7 +7,7 @@ let unsubscribeState: (() => void) | null = null;
 let unsubscribeActions: (() => void) | null = null; // For Host
 
 export function initPeer(id: string | undefined, onOpen: (id: string) => void, onError?: (err: any) => void) {
-    console.log("Initializing Firebase Sync...");
+
     if (onError) { }
 
     // Just pass back the ID. Firebase handles the connection.
@@ -23,7 +23,7 @@ export function connectToHost(roomId: string, onConnected?: () => void, onError?
     // detach old listeners
     if (unsubscribeState) unsubscribeState();
 
-    console.log(`Connecting to Game: ${roomId}`);
+
 
     const gameRef = doc(db, "games", roomId);
     let hasConnected = false;
@@ -61,7 +61,7 @@ export function connectToHost(roomId: string, onConnected?: () => void, onError?
 export function initializeHost(roomId: string) {
     if (unsubscribeActions) unsubscribeActions();
 
-    console.log(`Host listening for actions in: ${roomId}`);
+
     const actionsRef = collection(db, "games", roomId, "actions");
 
     // Listen for new actions
@@ -71,7 +71,7 @@ export function initializeHost(roomId: string) {
                 const actionData = change.doc.data();
                 const store = useGameStore();
 
-                console.log("🎮 Action Received:", actionData.type);
+
                 store.processAction(actionData as any);
 
                 // Cleanup action
@@ -116,7 +116,7 @@ export function sendAction(action: any) {
 }
 
 export async function clearGameData(roomId: string) {
-    console.log("Clearing game data for:", roomId);
+
     try {
         await deleteDoc(doc(db, "games", roomId));
 

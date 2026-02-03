@@ -56,11 +56,11 @@ async function processQueue() {
 }
 
 async function playSoundActual(type: string, isMuted: boolean): Promise<void> {
-    console.log(`🔊 Playing: ${type}${isMuted ? ' (MUTED)' : ''}`);
+
 
     // If muted and this sound has an MP3, skip entirely
     if (isMuted && mp3Sounds[type]) {
-        console.log(`   🔇 Sound muted, skipping: ${type}`);
+
         return;
     }
 
@@ -71,7 +71,7 @@ async function playSoundActual(type: string, isMuted: boolean): Promise<void> {
 
     // Priority: MP3 Files
     if (mp3Sounds[type]) {
-        console.log(`   🎵 Playing MP3: ${type}`);
+
 
         return new Promise<void>((resolve) => {
             const audio = new Audio(mp3Sounds[type]);
@@ -85,7 +85,7 @@ async function playSoundActual(type: string, isMuted: boolean): Promise<void> {
 
             audio.addEventListener('ended', () => {
                 clearTimeout(timeout);
-                console.log(`   ✅ Audio finished: ${type}`);
+
                 resolve();
             });
 
@@ -98,7 +98,7 @@ async function playSoundActual(type: string, isMuted: boolean): Promise<void> {
             // Handle canplaythrough to ensure audio is ready
             audio.addEventListener('canplaythrough', () => {
                 audio.play().then(() => {
-                    console.log(`   ▶️ Audio started: ${type}`);
+
                 }).catch(e => {
                     clearTimeout(timeout);
                     console.error(`   ❌ Play failed for ${type}:`, e);
@@ -195,7 +195,7 @@ export const playSound = (
     type: 'roll' | 'buy' | 'cash' | 'fail' | 'win' | 'turn' | 'bankrupt' | 'hotel' | 'fine' | 'tax' | 'deal' | 'house' | 'vacation' | 'negativeMoney',
     isMuted: boolean = false
 ) => {
-    console.log(`🎵 Queuing sound: ${type} (queue size: ${soundQueue.length}, processing: ${isProcessing})`);
+
 
     // Add to queue
     soundQueue.push({ type, isMuted });

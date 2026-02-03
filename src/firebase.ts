@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, setPersistence, browserSessionPersistence } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence, onAuthStateChanged } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 // TODO: Replace with your actual Firebase config keys
@@ -19,11 +19,15 @@ export const googleProvider = new GoogleAuthProvider();
 
 export async function loginWithGoogle() {
     try {
-        await setPersistence(auth, browserSessionPersistence);
+        await setPersistence(auth, browserLocalPersistence);
         const result = await signInWithPopup(auth, googleProvider);
         return result.user;
     } catch (error) {
         console.error("Error logging in with Google", error);
         throw error;
     }
+}
+
+export function onAuthChange(callback: (user: any) => void) {
+    onAuthStateChanged(auth, callback);
 }

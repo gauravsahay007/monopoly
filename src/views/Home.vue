@@ -44,7 +44,7 @@ watch(() => rules.value.mapSelection, (newMap) => {
 
 watch(() => store.user, async (u) => {
     if (u) {
-        console.log("Home: User auth settled:", u.displayName || u.email);
+
         name.value = u.displayName || u.email?.split('@')[0] || 'Player';
         authLoading.value = false;
 
