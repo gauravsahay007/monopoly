@@ -161,45 +161,88 @@ function copyRoomLink() {
     store.notify("Room link copied!", "success");
 }
 
+// Helper to generate random 6-char ID
+function generateRandomRoomId() {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
 async function createGame(resume = false) {
+  if (actionLoading.value) return;
   if (!name.value) return store.notify("Please enter your name", "error");
   
-  // CRITICAL FIX: Use the ACTUAL peer ID as the room ID
-  // This ensures guests connect to the peer we're actually listening on
-  const actualPeerId = peerId.value;
-  const storageKey = store.user?.uid || actualPeerId;
+  actionLoading.value = true;
+  try {
+      // Determine Room ID: Resume uses existing, New generates random
+      let targetRoomId = '';
+      let storageKey = ''; 
+      
+      if (resume) {
+          // Resuming: Use the stored room ID
+          if (!recentRoomId.value) throw new Error("No recent room to resume");
+          targetRoomId = recentRoomId.value;
+          storageKey = targetRoomId; // Persistence key is the Room ID now
+      } else {
+          // New Game: Generate Random ID
+          targetRoomId = generateRandomRoomId();
+          storageKey = targetRoomId; 
+      }
 
-  if (!resume) {
-      // Delete previous game session if starting fresh
-      await store.deleteOldGame(storageKey);
-  }
-  
-  initializeHost(actualPeerId);
-  store.setIdentity(actualPeerId, true); // My network ID
-  store.setRoomId(actualPeerId); // FIXED: Use actual peer ID, not UID
-  
-  let loaded = false;
-  if (resume) {
-      loaded = await store.loadGame(storageKey);
-  }
-  
-  if (loaded) {
-      store.notify("Existing game progress restored!", "success");
-  } else {
-      store.gameState.settings = { ...store.gameState.settings, ...rules.value };
-      store.addPlayer({
-        id: actualPeerId,
-        uid: store.user?.uid,
-        name: name.value,
-        cash: rules.value.startingCash,
-        position: 0,
-        color: selectedColor.value, 
-        inJail: false,
-        jailTurns: 0,
-        isHost: true,
-        avatar: '😎'
-      });
-      if (!resume) store.notify("New game created!", "success");
+      console.log('🎮 Creating/Resuming game. Room ID:', targetRoomId, 'Resume:', resume);
+
+      // We need to re-initialize peer to match the Room ID if we are Host
+      // This is because clients connect to "RoomID" which IS the Host's Peer ID in this P2P setup.
+      if (peerId.value !== targetRoomId) {
+           await new Promise<void>((resolve) => {
+               initPeer(targetRoomId, (id) => {
+                   peerId.value = id;
+                   resolve();
+               });
+           });
+      }
+
+      const actualPeerId = peerId.value; // Should match targetRoomId
+
+      if (!resume) {
+          // Delete previous game session if starting fresh (cleanup old data for this ID if collision, unlikely)
+          // Actually, we should check if it exists? Random ID collision is rare.
+          // Better: Ensure we start clean.
+          await store.deleteOldGame(storageKey);
+      }
+      
+      initializeHost(actualPeerId);
+      store.setIdentity(actualPeerId, true);
+      store.setRoomId(actualPeerId);
+      
+      let loaded = false;
+      if (resume) {
+          loaded = await store.loadGame(storageKey);
+      }
+      
+      if (loaded) {
+          store.notify("Existing game progress restored!", "success");
+      } else {
+          store.gameState.settings = { ...store.gameState.settings, ...rules.value };
+          // If resuming failed or new game, setup fresh:
+          store.addPlayer({
+            id: actualPeerId,
+            uid: store.user?.uid,
+            name: name.value,
+            cash: rules.value.startingCash,
+            position: 0,
+            color: selectedColor.value, 
+            inJail: false,
+            jailTurns: 0,
+            isHost: true,
+            avatar: '😎'
+          });
+          if (!resume) store.notify("New game created! Code: " + targetRoomId, "success");
+      }
+      
+  } catch (e) {
+      console.error(e);
+      store.notify("An error occurred creating the game.", "error");
+  } finally {
+      actionLoading.value = false;
   }
 }
 
@@ -248,9 +291,21 @@ async function rejoinRecent() {
     // Use stored wasHost flag for more reliable detection
     const wasHost = recentWasHost.value || (store.user?.uid === recentRoomId.value);
     
-    if (wasHost) {
+    if (wasHost && recentRoomId.value) {
         // Host: Resume the game and load state from Firestore
         roomIdInput.value = recentRoomId.value;
+        const targetId = recentRoomId.value;
+
+        // Ensure we initialize with the correct ID before resuming logic checks it
+        if (peerId.value !== targetId) {
+             await new Promise<void>((resolve) => {
+                 initPeer(targetId, (id) => {
+                     peerId.value = id;
+                     resolve();
+                 });
+             });
+        }
+
         await createGame(true); // Call with resume = true
     } else {
         // Client: Connect to the game using the stored host info
