@@ -393,15 +393,17 @@ async function rejoinRecent() {
               <span>Starting Cash</span>
               <select v-model="rules.startingCash">
                   <template v-if="rules.mapSelection === 'india' || rules.mapSelection === 'bangalore'">
-                    <option :value="10000000">₹1Cr</option>
-                    <option :value="15000000">₹1.5Cr</option>
-                    <option :value="20000000">₹2Cr</option>
-                    <option :value="30000000">₹3Cr</option>
+                    <option :value="5000000">₹50L (Hard)</option>
+                    <option :value="10000000">₹1Cr (Standard)</option>
+                    <option :value="15000000">₹1.5Cr (Rich)</option>
+                    <option :value="20000000">₹2Cr (Tycoon)</option>
+                    <option :value="50000000">₹5Cr (Sandbox)</option>
                   </template>
                   <template v-else>
-                    <option :value="1500">$1500</option>
-                    <option :value="2000">$2000</option>
-                    <option :value="2500">$2500</option>
+                    <option :value="1000">$1000 (Hard)</option>
+                    <option :value="1500">$1500 (Standard)</option>
+                    <option :value="2000">$2000 (Rich)</option>
+                    <option :value="5000">$5000 (Tycoon)</option>
                   </template>
               </select>
           </div>

@@ -47,18 +47,19 @@ export const useGameStore = defineStore('game', () => {
     });
 
     function formatCurrency(amount: number) {
+        const symbol = currencySymbol.value;
         const map = gameState.value.settings.mapSelection;
         if (map === 'india' || map === 'bangalore') {
             const abs = Math.abs(amount);
             const prefix = amount < 0 ? '-' : '';
 
             // Show more decimal places for large numbers to reflect small changes
-            if (abs >= 10000000) return prefix + (abs / 10000000).toLocaleString('en-IN', { maximumFractionDigits: 4 }) + 'Cr';
-            if (abs >= 100000) return prefix + (abs / 100000).toLocaleString('en-IN', { maximumFractionDigits: 2 }) + 'L';
-            if (abs >= 1000) return prefix + (abs / 1000).toLocaleString('en-IN') + 'k';
-            return amount.toString();
+            if (abs >= 10000000) return prefix + symbol + (abs / 10000000).toLocaleString('en-IN', { maximumFractionDigits: 4 }) + 'Cr';
+            if (abs >= 100000) return prefix + symbol + (abs / 100000).toLocaleString('en-IN', { maximumFractionDigits: 2 }) + 'L';
+            if (abs >= 1000) return prefix + symbol + (abs / 1000).toLocaleString('en-IN') + 'k';
+            return symbol + amount.toString();
         }
-        return amount.toLocaleString();
+        return symbol + amount.toLocaleString();
     }
 
     const notifications = ref<{ id: number, message: string, type: 'info' | 'success' | 'error' }[]>([]);
@@ -384,11 +385,14 @@ export const useGameStore = defineStore('game', () => {
         gameState.value.dice = [d1, d2];
 
         log(`${player.name} rolled ${d1 + d2} (${d1}+${d2})`);
-        movePlayer(player, d1 + d2);
 
-        // Turn ENDS (even if sent back to jail!)
-        nextTurn();
-        broadcast();
+        // Wait 1s for fine sound to play before moving/ending turn
+        setTimeout(() => {
+            movePlayer(player, d1 + d2);
+            // Turn ENDS (even if sent back to jail!)
+            nextTurn();
+            broadcast();
+        }, 1000);
     }
 
     function handleLanding(player: Player): boolean {
