@@ -462,7 +462,7 @@ export const useGameStore = defineStore('game', () => {
             log(`${player.name} landed on Start.`);
         }
 
-        return false; // Normal landing, turn continues
+        return player.inJail; // If player ended up in jail (e.g. via Card), turn ends
     }
 
     function payRent(player: Player, tile: Tile) {

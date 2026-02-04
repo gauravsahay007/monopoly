@@ -56,62 +56,57 @@ async function processQueue() {
 }
 
 async function playSoundActual(type: string, isMuted: boolean): Promise<void> {
-
-
-    // If muted and this sound has an MP3, skip entirely
-    if (isMuted && mp3Sounds[type]) {
-
-        return;
-    }
+    if (isMuted) return;
 
     // Resume audio context if suspended (browser autoplay policy)
     if (audioCtx.state === 'suspended') {
         await audioCtx.resume();
     }
 
-    // Priority: MP3 Files
+    // Try MP3 First (if defined)
     if (mp3Sounds[type]) {
+        try {
+            await new Promise<void>((resolve, reject) => {
+                const audio = new Audio(mp3Sounds[type]);
+                audio.volume = 1.0;
 
+                const timeout = setTimeout(() => {
+                    console.warn(`   ⏰ Audio timeout for ${type}`);
+                    reject('timeout');
+                }, 4000);
 
-        return new Promise<void>((resolve) => {
-            const audio = new Audio(mp3Sounds[type]);
-            audio.volume = 1.0;
-
-            // Timeout protection - max 5 seconds per audio
-            const timeout = setTimeout(() => {
-                console.warn(`   ⏰ Audio timeout for ${type}`);
-                resolve();
-            }, 5000);
-
-            audio.addEventListener('ended', () => {
-                clearTimeout(timeout);
-
-                resolve();
-            });
-
-            audio.addEventListener('error', (e) => {
-                clearTimeout(timeout);
-                console.error(`   ❌ Audio error for ${type}:`, e);
-                resolve();
-            });
-
-            // Handle canplaythrough to ensure audio is ready
-            audio.addEventListener('canplaythrough', () => {
-                audio.play().then(() => {
-
-                }).catch(e => {
+                audio.addEventListener('ended', () => {
                     clearTimeout(timeout);
-                    console.error(`   ❌ Play failed for ${type}:`, e);
                     resolve();
                 });
-            }, { once: true });
 
-            // Trigger load
-            audio.load();
-        });
+                audio.addEventListener('error', (e) => {
+                    clearTimeout(timeout);
+                    console.error(`   ❌ Audio error for ${type}:`, e);
+                    reject(e);
+                });
+
+                audio.addEventListener('canplaythrough', () => {
+                    audio.play().catch(e => {
+                        clearTimeout(timeout);
+                        reject(e);
+                    });
+                }, { once: true });
+
+                audio.load();
+            });
+            return; // Success, exit
+        } catch (e) {
+            console.warn(`   ⚠️ MP3 failed for ${type}, using fallback tone.`);
+            // Fall through to synthesized sound
+        }
     }
 
     // Fallback: Synthesized Tones
+    await playSynthesizedSound(type);
+}
+
+function playSynthesizedSound(type: string): Promise<void> {
     return new Promise<void>((resolve) => {
         let maxDuration = 0;
 
@@ -122,49 +117,46 @@ async function playSoundActual(type: string, isMuted: boolean): Promise<void> {
                 maxDuration = 200;
                 break;
             case 'cash':
+            case 'win':
                 playTone(800, 'square', 0.1, 0.05);
                 setTimeout(() => playTone(1200, 'square', 0.3, 0.05), 100);
                 maxDuration = 400;
                 break;
             case 'fail':
+            case 'bankrupt':
+            case 'negativeMoney':
                 playTone(150, 'sawtooth', 0.4, 0.1);
                 setTimeout(() => playTone(120, 'sawtooth', 0.4, 0.1), 300);
                 maxDuration = 700;
-                break;
-            case 'win':
-                playTone(523.25, 'triangle', 0.2);
-                setTimeout(() => playTone(659.25, 'triangle', 0.2), 200);
-                setTimeout(() => playTone(783.99, 'triangle', 0.4), 400);
-                maxDuration = 800;
                 break;
             case 'turn':
                 playTone(440, 'sine', 0.3, 0.05);
                 maxDuration = 300;
                 break;
             case 'house':
-                // Building sound - hammer-like effect
+            case 'hotel':
                 playTone(200, 'square', 0.1, 0.08);
-                setTimeout(() => playTone(250, 'square', 0.1, 0.08), 120);
                 setTimeout(() => playTone(300, 'square', 0.15, 0.08), 240);
-                setTimeout(() => playTone(400, 'triangle', 0.2, 0.1), 380);
                 maxDuration = 600;
                 break;
             case 'vacation':
-                // Relaxing chime
-                playTone(523.25, 'sine', 0.3, 0.05); // C5
-                setTimeout(() => playTone(659.25, 'sine', 0.4, 0.05), 150); // E5
-                setTimeout(() => playTone(783.99, 'sine', 0.5, 0.05), 300); // G5
-                maxDuration = 800;
+                playTone(523.25, 'sine', 0.3, 0.05);
+                setTimeout(() => playTone(659.25, 'sine', 0.4, 0.05), 150);
+                maxDuration = 700;
                 break;
-            case 'negativeMoney':
-                // Warning beeps - descending alert
-                playTone(440, 'sawtooth', 0.15, 0.1); // A4
-                setTimeout(() => playTone(370, 'sawtooth', 0.15, 0.1), 180); // F#4
-                setTimeout(() => playTone(311, 'sawtooth', 0.2, 0.12), 360); // D#4
-                maxDuration = 600;
+            case 'fine':
+            case 'tax':
+            case 'buy':
+            case 'deal':
+                // Spending money / Action sound
+                playTone(300, 'triangle', 0.2);
+                setTimeout(() => playTone(200, 'triangle', 0.2), 150);
+                maxDuration = 400;
                 break;
             default:
-                maxDuration = 0;
+                // Generic blip for unknown
+                playTone(440, 'sine', 0.1);
+                maxDuration = 200;
         }
 
         setTimeout(() => resolve(), maxDuration);
