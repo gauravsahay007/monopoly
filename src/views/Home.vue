@@ -17,6 +17,8 @@ const peerId = ref('');
 const selectedColor = ref('#ef4444');
 const authLoading = ref(true);
 const recentRoomId = ref<string | null>(null);
+const recentHostUid = ref<string | null>(null);
+const recentWasHost = ref(false);
 
 const colors = [
     '#b84c4c', '#c87a3a', '#c4a24a', '#4f9a6a', '#4a6fb3', '#7a6fd6', '#b56db8', '#5fa7c6'
@@ -50,7 +52,10 @@ watch(() => store.user, async (u) => {
 
         getDoc(doc(db, "users", u.uid)).then(userDoc => {
             if (userDoc.exists()) {
-                recentRoomId.value = userDoc.data().lastRoomId;
+                const data = userDoc.data();
+                recentRoomId.value = data.lastRoomId;
+                recentHostUid.value = data.lastHostUid || data.lastRoomId;
+                recentWasHost.value = data.wasHost || false;
             }
         }).catch(e => {
             console.warn("Home: Failed to fetch user meta", e);
@@ -173,8 +178,32 @@ function joinGame() {
 
 async function rejoinGame() {
     if (!recentRoomId.value) return;
-    roomIdInput.value = recentRoomId.value;
-    joinGame();
+    
+    // Use stored wasHost flag for more reliable detection
+    const wasHost = recentWasHost.value || (store.user?.uid === recentRoomId.value);
+    
+    if (wasHost && recentRoomId.value) {
+        // Host: Resume the game and load state from Firestore
+        const targetId = recentRoomId.value;
+
+        // Ensure we initialize with the correct ID before resuming logic checks it
+        if (peerId.value !== targetId) {
+             await new Promise<void>((resolve) => {
+                 initPeer(targetId, (id) => {
+                     peerId.value = id;
+                     resolve();
+                 });
+             });
+        }
+
+        await createGame(true); // Call with resume = true
+    } else {
+        // Client: Connect to the game using the stored host info
+        // The game might be stored under host UID or room ID
+        const gameRoomId = recentHostUid.value || recentRoomId.value;
+        roomIdInput.value = gameRoomId;
+        joinGame();
+    }
 }
 </script>
 
