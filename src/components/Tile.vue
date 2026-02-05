@@ -79,9 +79,9 @@ const hasHotel = computed(() => {
       <!-- Price Row with Building Indicator -->
       <div class="price-row">
         <div v-if="tile.price && tile.type !== 'START' && tile.type !== 'TAX'" class="price">
-          {{ store.currencySymbol }}{{ store.formatCurrency(tile.price) }}
+          {{ store.formatCurrency(tile.price) }}
         </div>
-        <div v-if="tile.amount" class="price">Pay {{ store.currencySymbol }}{{ store.formatCurrency(tile.amount) }}</div>
+        <div v-if="tile.amount" class="price">Pay {{ store.formatCurrency(tile.amount) }}</div>
         
         <!-- Building Indicator (next to price) -->
         <div v-if="tile.owner && tile.type === 'PROPERTY' && (hasHotel || houseCount > 0)" class="building-badge" :style="{ backgroundColor: ownerColor || '#333' }">

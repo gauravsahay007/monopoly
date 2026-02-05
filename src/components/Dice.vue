@@ -65,7 +65,7 @@ const jailFine = computed(() => isIndian.value ? 500000 : 50);
       <div v-if="store.me?.inJail" class="jail-actions">
           <h3>You are in Jail!</h3>
               <button @click="payFine" class="btn-warning" :disabled="isRolling">
-                  Pay {{ store.currencySymbol }}{{ store.formatCurrency(jailFine) }} (Exit Now)
+                  Pay {{ store.formatCurrency(jailFine) }} (Exit Now)
               </button>
       </div>
       
@@ -76,7 +76,7 @@ const jailFine = computed(() => isIndian.value ? 500000 : 50);
           
           <div v-if="!canRoll" class="post-roll-actions">
              <button v-if="tileToBuy" @click="buy" class="btn-buy">
-                 🛒 Buy for {{ store.currencySymbol }}{{ store.formatCurrency(tileToBuy.price) }}
+                 🛒 Buy for {{ store.formatCurrency(tileToBuy.price) }}
              </button>
              <button @click="endTurn" class="btn-end">
                  End Turn

@@ -184,7 +184,7 @@ function cancelTrade() {
             <div class="side" v-if="me">
                 <h3>{{ me.name }} (You)</h3>
                 <div class="cash-box">
-                    <label>Cash: {{ store.currencySymbol }}{{ store.formatCurrency(me.cash) }}</label>
+                    <label>Cash: {{ store.formatCurrency(me.cash) }}</label>
                     <input type="number" v-model.number="myCashOffer" :max="me.cash" min="0" placeholder="Offer Cash" :disabled="isViewMode">
                     <div class="helpers" v-if="!isViewMode">
                         <button @click="multiplyOffer(1000)">K</button>
@@ -201,7 +201,7 @@ function cancelTrade() {
                        @click="toggleMyProp(prop.id)"
                     >
                         <div class="swatch" :class="prop.group"></div>
-                        <span>{{ prop.name }} <small class="prop-val">({{ store.currencySymbol }}{{ store.formatCurrency(prop.price || 0) }})</small></span>
+                        <span>{{ prop.name }} <small class="prop-val">({{ store.formatCurrency(prop.price || 0) }})</small></span>
                     </div>
                 </div>
             </div>
@@ -227,7 +227,7 @@ function cancelTrade() {
                        @click="toggleTargetProp(prop.id)"
                     >
                         <div class="swatch" :class="prop.group"></div>
-                        <span>{{ prop.name }} <small class="prop-val">({{ store.currencySymbol }}{{ store.formatCurrency(prop.price || 0) }})</small></span>
+                        <span>{{ prop.name }} <small class="prop-val">({{ store.formatCurrency(prop.price || 0) }})</small></span>
                     </div>
                 </div>
             </div>

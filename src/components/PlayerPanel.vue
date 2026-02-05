@@ -75,7 +75,7 @@ function getInitials(name: string) {
                  <span v-if="p.inJail" class="jail-icon">🔒</span>
              </div>
              <div class="p-cash" v-if="!p.bankrupt" :class="{ 'debt': p.cash < 0 }">
-                 {{ store.currencySymbol }}{{ store.formatCurrency(p.cash) }}
+                 {{ store.formatCurrency(p.cash) }}
              </div>
              <div class="p-bankrupt" v-else>BANKRUPT</div>
            </div>

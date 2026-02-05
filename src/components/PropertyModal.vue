@@ -34,38 +34,38 @@ function getRent(index: number) {
             <div v-if="tile.type === 'PROPERTY'">
                 <div class="rent-row">
                     <span>Rent</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(getRent(0)) }}</span>
+                    <span>{{ store.formatCurrency(getRent(0)) }}</span>
                 </div>
                 <div class="rent-row">
                     <span>With 1 House</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(getRent(1)) }}</span>
+                    <span>{{ store.formatCurrency(getRent(1)) }}</span>
                 </div>
                 <div class="rent-row">
                     <span>With 2 Houses</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(getRent(2)) }}</span>
+                    <span>{{ store.formatCurrency(getRent(2)) }}</span>
                 </div>
                 <div class="rent-row">
                     <span>With 3 Houses</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(getRent(3)) }}</span>
+                    <span>{{ store.formatCurrency(getRent(3)) }}</span>
                 </div>
                 <div class="rent-row">
                     <span>With 4 Houses</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(getRent(4)) }}</span>
+                    <span>{{ store.formatCurrency(getRent(4)) }}</span>
                 </div>
                 <div class="rent-row">
                     <span>With HOTEL</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(getRent(5)) }}</span>
+                    <span>{{ store.formatCurrency(getRent(5)) }}</span>
                 </div>
                 
                 <hr>
                 
                 <div class="info-row">
                     <span>Mortgage Value</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(Math.floor(tile.price / 2)) }}</span>
+                    <span>{{ store.formatCurrency(Math.floor(tile.price / 2)) }}</span>
                 </div>
                 <div class="info-row">
                     <span>House Cost</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(tile.buildCost || 50) }}</span>
+                    <span>{{ store.formatCurrency(tile.buildCost || 50) }}</span>
                 </div> <!-- buildCost missing in logic, default 50 -->
             </div>
             
@@ -74,22 +74,22 @@ function getRent(index: number) {
                 <h3>✈️ Airport Rent Rules</h3>
                 <div class="rent-row">
                     <span>1 Airport Owned</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(100000) }}</span>
+                    <span>{{ store.formatCurrency(100000) }}</span>
                 </div>
                 <div class="rent-row">
                     <span>2 Airports Owned</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(200000) }} (2×)</span>
+                    <span>{{ store.formatCurrency(200000) }} (2×)</span>
                 </div>
                 <div class="rent-row">
                     <span>3 Airports Owned</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(400000) }} (4×)</span>
+                    <span>{{ store.formatCurrency(400000) }} (4×)</span>
                 </div>
                 <div class="rent-row">
                     <span>4 Airports Owned</span>
-                    <span>{{ store.currencySymbol }}{{ store.formatCurrency(800000) }} (8×)</span>
+                    <span>{{ store.formatCurrency(800000) }} (8×)</span>
                 </div>
                 <p class="rule-note">💡 Rent doubles for each additional airport owned!</p>
-                <p v-if="tile.price">Price: {{ store.currencySymbol }}{{ store.formatCurrency(tile.price) }}</p>
+                <p v-if="tile.price">Price: {{ store.formatCurrency(tile.price) }}</p>
             </div>
             
             <!-- Utility Rules -->
@@ -111,7 +111,7 @@ function getRent(index: number) {
                 <p class="rule-note">Example: Roll 7 with 1 utility = {{ store.currencySymbol }}28 rent</p>
                 <p class="rule-note">Example: Roll 7 with 2 utilities = {{ store.currencySymbol }}70 rent</p>
                 <p class="rule-note">Example: Roll 7 with 3 utilities = {{ store.currencySymbol }}140 rent (Monopoly!)</p>
-                <p v-if="tile.price">Price: {{ store.currencySymbol }}{{ store.formatCurrency(tile.price) }}</p>
+                <p v-if="tile.price">Price: {{ store.formatCurrency(tile.price) }}</p>
             </div>
             
             <!-- Prison/Jail Rules -->
@@ -127,7 +127,7 @@ function getRent(index: number) {
                 <p><strong>To Get Out:</strong></p>
                 <ul>
                     <li>🎲 Roll doubles (free release)</li>
-                    <li>💰 Pay fine: {{ store.currencySymbol }}{{ store.formatCurrency(50000) }}</li>
+                    <li>💰 Pay fine: {{ store.formatCurrency(50000) }}</li>
                     <li>📄 Use "Get Out of Jail Free" card</li>
                     <li>⏰ After 3 failed rolls (forced fine)</li>
                 </ul>
@@ -147,11 +147,11 @@ function getRent(index: number) {
                 <h3>💸 Tax Rules</h3>
                 <p v-if="tile.name === 'Income Tax'">
                     <strong>Income Tax:</strong><br>
-                    Pay {{ store.currencySymbol }}{{ store.formatCurrency(tile.amount || 0) }}
+                    Pay {{ store.formatCurrency(tile.amount || 0) }}
                 </p>
                 <p v-else-if="tile.name === 'Luxury Tax'">
                     <strong>Luxury Tax:</strong><br>
-                    Pay {{ store.currencySymbol }}{{ store.formatCurrency(tile.amount || 0) }}
+                    Pay {{ store.formatCurrency(tile.amount || 0) }}
                 </p>
                 <p class="rule-note">💡 All taxes go to the Vacation pot!</p>
             </div>
@@ -159,8 +159,8 @@ function getRent(index: number) {
             <!-- Other tiles -->
             <div v-else class="simple-info">
                 <p>{{ tile.type }}</p>
-                <p v-if="tile.price">Price: {{ store.currencySymbol }}{{ store.formatCurrency(tile.price) }}</p>
-                <p v-if="tile.amount">Amount: {{ store.currencySymbol }}{{ store.formatCurrency(tile.amount) }}</p>
+                <p v-if="tile.price">Price: {{ store.formatCurrency(tile.price) }}</p>
+                <p v-if="tile.amount">Amount: {{ store.formatCurrency(tile.amount) }}</p>
             </div>
             
             
@@ -181,7 +181,7 @@ function getRent(index: number) {
                     @click="store.requestAction({ type: 'UPGRADE_PROPERTY', payload: tile.id, from: store.myId! })">
                     <span v-if="!tile.houseCount || tile.houseCount < 4">🏠 Build House</span>
                     <span v-else-if="tile.houseCount === 4">🏨 Build Hotel</span>
-                    <span class="build-cost">(-{{ store.currencySymbol }}{{ store.formatCurrency(tile.buildCost || Math.floor(tile.price * 0.5)) }})</span>
+                    <span class="build-cost">(-{{ store.formatCurrency(tile.buildCost || Math.floor(tile.price * 0.5)) }})</span>
                 </button>
 
                 <!-- Sell Button -->
@@ -191,7 +191,7 @@ function getRent(index: number) {
                     @click="store.requestAction({ type: 'DOWNGRADE_PROPERTY', payload: tile.id, from: store.myId! })">
                     <span v-if="tile.houseCount === 5">🏨 Sell Hotel</span>
                     <span v-else>🏚️ Sell House</span>
-                    <span class="sell-val">(+{{ store.currencySymbol }}{{ store.formatCurrency(Math.floor((tile.buildCost || Math.floor(tile.price * 0.5)) * 0.5)) }})</span>
+                    <span class="sell-val">(+{{ store.formatCurrency(Math.floor((tile.buildCost || Math.floor(tile.price * 0.5)) * 0.5)) }})</span>
                 </button>
             </div>
         </div>
