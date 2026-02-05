@@ -96,15 +96,42 @@ async function handleGoogleLogin() {
     }
 }
 
+// Helper to generate random 6-char ID
+function generateRandomRoomId() {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
 async function createGame(resume = false) {
   if (!name.value) return store.notify("Please enter your name", "error");
   
+  // Determine Room ID: Resume uses existing, New generates random
+  let targetRoomId = '';
+  let storageKey = ''; 
+  
+  if (resume) {
+      if (!recentRoomId.value) return;
+      targetRoomId = recentRoomId.value;
+      storageKey = targetRoomId;
+  } else {
+      targetRoomId = generateRandomRoomId();
+      storageKey = targetRoomId;
+  }
+
+  // Ensure Peer ID matches target Room ID for hosting
+  if (peerId.value !== targetRoomId) {
+       await new Promise<void>((resolve) => {
+           initPeer(targetRoomId, (id) => {
+               peerId.value = id;
+               resolve();
+           });
+       });
+  }
+  
   const actualPeerId = peerId.value;
-  const storageKey = store.user?.uid || actualPeerId;
 
   if (!resume) {
       await store.deleteOldGame(storageKey);
-      store.resetState(); // Force fresh state
+      store.resetState(); 
   }
   
   initializeHost(actualPeerId);
@@ -132,12 +159,12 @@ async function createGame(resume = false) {
         isHost: true,
         avatar: '😎'
       });
-      if (!resume) store.notify("New game created!", "success");
+      if (!resume) store.notify("New game created! Code: " + targetRoomId, "success");
   }
   
-  // Navigate to room
   router.push(`/room/${actualPeerId}`);
 }
+
 
 function joinGame() {
   if (!roomIdInput.value) return store.notify("Enter room ID", "error");
@@ -231,7 +258,21 @@ async function rejoinGame() {
 
         <div class="setting-item">
           <label>Starting Cash</label>
-          <input type="number" v-model.number="rules.startingCash" />
+          <select v-model="rules.startingCash">
+              <template v-if="rules.mapSelection === 'india' || rules.mapSelection === 'bangalore'">
+                <option :value="5000000">₹50L (Hard)</option>
+                <option :value="10000000">₹1Cr (Standard)</option>
+                <option :value="15000000">₹1.5Cr (Rich)</option>
+                <option :value="20000000">₹2Cr (Tycoon)</option>
+                <option :value="50000000">₹5Cr (Sandbox)</option>
+              </template>
+              <template v-else>
+                <option :value="1000">$1000 (Hard)</option>
+                <option :value="1500">$1500 (Standard)</option>
+                <option :value="2000">$2000 (Rich)</option>
+                <option :value="5000">$5000 (Tycoon)</option>
+              </template>
+          </select>
         </div>
 
         <div class="setting-item checkbox">
